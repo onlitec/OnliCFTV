@@ -3,11 +3,62 @@ export type StreamState = 'online' | 'offline' | 'connecting' | 'error';
 export type DeviceType =
   | 'ip_camera'
   | 'nvr'
-  | 'intercom'
-  | 'traffic_lpr'
+  | 'dvr'
   | 'ptz'
+  | 'switch'
+  | 'router'
+  | 'intercom'
+  | 'access_control'
+  | 'alarm'
+  | 'server'
+  | 'computer'
+  | 'access_point'
   | 'thermal'
+  | 'traffic_lpr'
   | 'other';
+
+export interface NetworkInterfaceInfo {
+  id: string;
+  name: string;
+  ip: string;
+  netmask: string;
+  broadcast: string;
+  gateway?: string;
+  mac?: string;
+  is_up: boolean;
+  is_default: boolean;
+}
+
+export interface DiscoveredDevice {
+  id: string;
+  ip: string;
+  mac?: string;
+  brand: string;
+  hardware_model: string;
+  name: string;
+  device_type: DeviceType;
+  device_type_label: string;
+  serial_number?: string;
+  firmware_version?: string;
+  activation_status?: string; // 'Ativo' | 'Aguardando ativação'
+  rtsp_port: number;
+  http_port: number;
+  sdk_port: number;
+  protocols: string[];
+  confidence_score: number;
+  issues: string[];
+  xaddrs: string;
+  is_already_added: boolean;
+}
+
+export interface DiscoveryProgress {
+  percentage: number;
+  phase: string;
+  devices_found: number;
+  active_protocols: string[];
+  completed_protocols: string[];
+  is_running: boolean;
+}
 
 export interface Camera {
   id: string;
@@ -44,20 +95,6 @@ export interface UpdateCameraInput {
   stream_profile?: string;
   enabled?: boolean;
 }
-
-export interface DiscoveredDevice {
-  ip: string;
-  name: string;
-  hardware_model: string;
-  brand: string;
-  device_type: DeviceType;
-  device_type_label: string;
-  xaddrs: string;
-  rtsp_port: number;
-  is_already_added: bool_or_boolean;
-}
-
-type bool_or_boolean = boolean;
 
 export interface BatchDeviceItem {
   name: string;

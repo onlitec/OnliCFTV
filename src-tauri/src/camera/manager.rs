@@ -1,11 +1,10 @@
-use std::time::Duration;
 use crate::database::Database;
 use crate::camera::model::*;
 use crate::rtsp::client::build_authenticated_rtsp_url;
 use crate::rtsp::probe::probe_rtsp_stream;
 use crate::video::engine::VideoEngineManager;
 use crate::logging::logger::LogStore;
-use crate::onvif::discovery::OnvifDiscovery;
+use crate::discovery::{DiscoveryEngine, NetworkInterfaceManager, NetworkInterfaceInfo, DiscoveredDevice};
 
 #[derive(Clone)]
 pub struct CameraManager {
@@ -21,6 +20,10 @@ impl CameraManager {
             video_engine,
             log_store,
         }
+    }
+
+    pub fn get_network_interfaces(&self) -> Vec<NetworkInterfaceInfo> {
+        NetworkInterfaceManager::get_interfaces()
     }
 
     pub fn get_cameras(&self) -> Result<Vec<Camera>, String> {
@@ -44,10 +47,16 @@ impl CameraManager {
         Ok(cams)
     }
 
-    pub async fn discover_devices(&self) -> Result<Vec<DiscoveredDevice>, String> {
-        self.log_store.log("INFO", "Discovery", "Iniciando varredura de rede local por dispositivos ONVIF/CFTV");
+    pub async fn discover_devices(&self, interface_name: Option<String>) -> Result<Vec<DiscoveredDevice>, String> {
+        let iface_desc = interface_name.clone().unwrap_or_else(|| "Padrão".to_string());
+        self.log_store.log("INFO", "Discovery", &format!("Iniciando Descoberta Inteligente Multicamada na interface: {}", iface_desc));
         
-        let mut devices = OnvifDiscovery::discover_devices(Duration::from_millis(2500)).await?;
+        let log_clone = self.log_store.clone();
+        let mut devices = DiscoveryEngine::run_discovery(interface_name, move |prog| {
+            if prog.percentage % 25 == 0 || prog.percentage == 100 {
+                log_clone.log("INFO", "Discovery", &format!("[Progresso {}%] {}", prog.percentage, prog.phase));
+            }
+        }).await;
         
         let existing_cameras = self.db.get_cameras().unwrap_or_default();
         let existing_hosts: std::collections::HashSet<String> = existing_cameras.into_iter().map(|c| c.host).collect();
@@ -58,7 +67,7 @@ impl CameraManager {
             }
         }
 
-        self.log_store.log("INFO", "Discovery", &format!("Varredura concluída: {} dispositivos localizados", devices.len()));
+        self.log_store.log("INFO", "Discovery", &format!("Descoberta concluída: {} dispositivos localizados e diagnosticados", devices.len()));
         Ok(devices)
     }
 

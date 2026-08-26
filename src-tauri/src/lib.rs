@@ -1,6 +1,7 @@
 pub mod camera;
 pub mod rtsp;
 pub mod onvif;
+pub mod discovery;
 pub mod video;
 pub mod database;
 pub mod configuration;
@@ -10,6 +11,7 @@ use tauri::State;
 
 use crate::camera::model::*;
 use crate::camera::manager::CameraManager;
+use crate::discovery::NetworkInterfaceInfo;
 use crate::video::engine::{VideoEngineManager, CameraStreamStatus};
 use crate::logging::logger::{LogStore, LogEntry};
 use crate::configuration::config::AppConfig;
@@ -20,6 +22,11 @@ pub struct AppState {
     pub camera_manager: CameraManager,
     pub video_engine: VideoEngineManager,
     pub log_store: LogStore,
+}
+
+#[tauri::command]
+async fn get_network_interfaces(state: State<'_, AppState>) -> Result<Vec<NetworkInterfaceInfo>, String> {
+    Ok(state.camera_manager.get_network_interfaces())
 }
 
 #[tauri::command]
@@ -43,8 +50,8 @@ async fn create_cameras_batch(input: BatchCreateCamerasInput, state: State<'_, A
 }
 
 #[tauri::command]
-async fn discover_devices(state: State<'_, AppState>) -> Result<Vec<DiscoveredDevice>, String> {
-    state.camera_manager.discover_devices().await
+async fn discover_devices(interface_name: Option<String>, state: State<'_, AppState>) -> Result<Vec<DiscoveredDevice>, String> {
+    state.camera_manager.discover_devices(interface_name).await
 }
 
 #[tauri::command]
@@ -138,6 +145,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
+            get_network_interfaces,
             get_cameras,
             get_camera,
             create_camera,

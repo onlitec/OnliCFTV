@@ -25,7 +25,7 @@ interface DashboardPageProps {
   streamStatuses: Record<string, CameraStreamStatus>;
   discoveredDevices: DiscoveredDevice[];
   isScanning: boolean;
-  onRefreshScan: () => void;
+  onRefreshScan: (interfaceName?: string) => void;
   onAddCamera: () => void;
   onEditCamera: (cam: Camera) => void;
   onDeleteCamera: (id: string) => void;

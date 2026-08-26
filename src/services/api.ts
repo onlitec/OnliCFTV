@@ -4,6 +4,7 @@ import type {
   CreateCameraInput,
   UpdateCameraInput,
   DiscoveredDevice,
+  NetworkInterfaceInfo,
   BatchCreateCamerasInput,
   CameraConnectionTestResult,
   CameraStreamStatus,
@@ -12,6 +13,10 @@ import type {
 } from '@/types';
 
 export const api = {
+  async getNetworkInterfaces(): Promise<NetworkInterfaceInfo[]> {
+    return await invoke('get_network_interfaces');
+  },
+
   async getCameras(): Promise<Camera[]> {
     return await invoke('get_cameras');
   },
@@ -28,8 +33,8 @@ export const api = {
     return await invoke('create_cameras_batch', { input });
   },
 
-  async discoverDevices(): Promise<DiscoveredDevice[]> {
-    return await invoke('discover_devices');
+  async discoverDevices(interfaceName?: string): Promise<DiscoveredDevice[]> {
+    return await invoke('discover_devices', { interfaceName });
   },
 
   async updateCamera(input: UpdateCameraInput): Promise<Camera> {

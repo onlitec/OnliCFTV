@@ -56,10 +56,10 @@ export const App: React.FC = () => {
   }, []);
 
   // Background auto-scan for network devices
-  const runDiscoveryScan = useCallback(async () => {
+  const runDiscoveryScan = useCallback(async (interfaceName?: string) => {
     setIsScanning(true);
     try {
-      const found = await api.discoverDevices();
+      const found = await api.discoverDevices(interfaceName);
       setDiscoveredDevices(found);
     } catch (e) {
       console.error('Auto discovery scan error:', e);

@@ -1,22 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum DeviceType {
-    IpCamera,
-    Nvr,
-    Intercom,
-    TrafficLpr,
-    Ptz,
-    Thermal,
-    Other,
-}
-
-impl Default for DeviceType {
-    fn default() -> Self {
-        DeviceType::IpCamera
-    }
-}
+pub use crate::discovery::types::{DeviceType, DiscoveredDevice, NetworkInterfaceInfo, DiscoveryProgress};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Camera {
@@ -68,19 +52,6 @@ pub struct CameraConnectionTestResult {
     pub fps: Option<f32>,
     pub bitrate: Option<String>,
     pub latency_ms: Option<u64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiscoveredDevice {
-    pub ip: String,
-    pub name: String,
-    pub hardware_model: String,
-    pub brand: String,
-    pub device_type: DeviceType,
-    pub device_type_label: String,
-    pub xaddrs: String,
-    pub rtsp_port: u16,
-    pub is_already_added: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
