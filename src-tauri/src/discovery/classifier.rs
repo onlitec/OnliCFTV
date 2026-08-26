@@ -66,10 +66,10 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
     if let Some(ref v) = oui_vendor {
         detected_brand = v.clone();
         if v == "Hikvision" || v == "Dahua" || v == "Intelbras" || v == "Axis" {
-            score_camera += 10;
-            score_nvr += 10;
-            score_intercom += 10;
-            evidences_cam.push(format!("+10 Fabricante CFTV confirmado por MAC OUI ({})", v));
+            score_camera += 15;
+            score_nvr += 15;
+            score_intercom += 15;
+            evidences_cam.push(format!("+15 Fabricante CFTV confirmado por MAC OUI ({})", v));
         } else if v == "Cisco" || v == "TP-Link" || v == "Ubiquiti" {
             score_switch += 20;
             score_router += 20;
@@ -99,8 +99,8 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
                 score_switch += 60;
                 evidences_sw.push(format!("+60 SADP Hikvision: Switch de Rede PoE ({})", sm));
             } else {
-                score_camera += 25;
-                evidences_cam.push("+25 Resposta de protocolo SADP Hikvision".to_string());
+                score_camera += 30;
+                evidences_cam.push("+30 Resposta de protocolo SADP Hikvision".to_string());
             }
         }
     }
@@ -114,8 +114,8 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
             score_nvr += 45;
             evidences_nvr.push("+45 ONVIF WS-Discovery: Profile G / Gravador detectado".to_string());
         } else {
-            score_camera += 15;
-            evidences_cam.push("+15 ONVIF WS-Discovery ativo".to_string());
+            score_camera += 20;
+            evidences_cam.push("+20 ONVIF WS-Discovery ativo".to_string());
         }
     }
 
@@ -150,23 +150,23 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
 
     // CCTV ports
     if p.rtsp_554 {
-        score_camera += 15;
-        score_nvr += 15;
-        score_intercom += 15;
-        evidences_cam.push("+15 Porta de Streaming RTSP 554 ativa".to_string());
+        score_camera += 25;
+        score_nvr += 20;
+        score_intercom += 20;
+        evidences_cam.push("+25 Porta de Streaming RTSP 554 ativa".to_string());
     }
     if p.hikvision_8000 {
-        score_camera += 15;
-        score_nvr += 15;
-        score_intercom += 15;
+        score_camera += 35;
+        score_nvr += 30;
+        score_intercom += 30;
         detected_brand = "Hikvision".to_string();
-        evidences_cam.push("+15 Porta SDK Hikvision 8000 ativa".to_string());
+        evidences_cam.push("+35 Porta de Comando SDK Hikvision 8000 ativa".to_string());
     }
     if p.dahua_37777 {
-        score_camera += 15;
-        score_nvr += 15;
+        score_camera += 35;
+        score_nvr += 30;
         detected_brand = "Dahua/Intelbras".to_string();
-        evidences_cam.push("+15 Porta SDK Dahua/Intelbras 37777 ativa".to_string());
+        evidences_cam.push("+35 Porta de Comando SDK Dahua/Intelbras 37777 ativa".to_string());
     }
 
     // Server & Database ports (Strong Exclusion for cameras)
@@ -184,7 +184,7 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
         evidences_srv.push("+40 Porta Docker 2375 ativa".to_string());
     }
     if p.ssh_22 {
-        if !ctx.has_sadp && !ctx.has_onvif {
+        if !ctx.has_sadp && !ctx.has_onvif && !p.hikvision_8000 && !p.dahua_37777 {
             score_server += 25;
             score_switch += 15;
             score_camera -= 20;
@@ -251,10 +251,10 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
             evidences_rtr.push(format!("+50 Página Web Roteador: {}", fp.html_title.as_deref().unwrap_or("Router")));
         }
         if fp.is_hikvision {
-            score_camera += 15;
-            score_nvr += 15;
+            score_camera += 25;
+            score_nvr += 20;
             detected_brand = "Hikvision".to_string();
-            evidences_cam.push("+15 Interface Web CFTV Hikvision confirmada".to_string());
+            evidences_cam.push("+25 Interface Web CFTV Hikvision confirmada (/doc/index.html)".to_string());
         }
     }
 
@@ -280,10 +280,10 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
         score_router += 30;
     }
 
-    // 9. Negative penalty: If device has NO RTSP and NO ONVIF and NO SADP, heavily penalize Camera
-    if !p.rtsp_554 && !ctx.has_onvif && !ctx.has_sadp {
+    // 9. Negative penalty: If device has NO RTSP and NO ONVIF and NO SADP and NO SDK port, heavily penalize Camera
+    if !p.rtsp_554 && !ctx.has_onvif && !ctx.has_sadp && !p.hikvision_8000 && !p.dahua_37777 {
         score_camera -= 40;
-        contradictions_cam.push("-40 Sem RTSP 554, sem ONVIF e sem SADP".to_string());
+        contradictions_cam.push("-40 Sem RTSP 554, sem ONVIF, sem SADP e sem porta SDK".to_string());
     }
 
     // 10. Multi-category Decision Tournament
@@ -344,7 +344,13 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
             DeviceType::Switch => "Network Switch".to_string(),
             DeviceType::Router => "Gateway Router".to_string(),
             DeviceType::Computer => "Workstation PC".to_string(),
-            DeviceType::IpCamera => "Câmera IP".to_string(),
+            DeviceType::IpCamera => {
+                if detected_brand != "Dispositivo de Rede" {
+                    format!("{} Câmera IP", detected_brand)
+                } else {
+                    "Câmera IP".to_string()
+                }
+            },
             _ => "Dispositivo de Rede".to_string(),
         }
     };

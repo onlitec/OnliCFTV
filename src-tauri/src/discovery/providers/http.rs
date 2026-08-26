@@ -20,12 +20,12 @@ impl HttpFingerprintProvider {
     pub async fn fingerprint(ip: &str, port: u16) -> Option<HttpFingerprint> {
         let addr = format!("{}:{}", ip, port);
         let mut stream = tokio::time::timeout(
-            Duration::from_millis(120),
+            Duration::from_millis(150),
             TcpStream::connect(&addr)
         ).await.ok()?.ok()?;
 
         let request = format!(
-            "GET / HTTP/1.1\r\nHost: {}\r\nUser-Agent: OnliView-Discovery/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n",
+            "GET / HTTP/1.1\r\nHost: {}\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\r\nAccept: */*\r\nConnection: close\r\n\r\n",
             ip
         );
 
@@ -34,7 +34,7 @@ impl HttpFingerprintProvider {
         }
 
         let mut buf = [0u8; 4096];
-        let n = match tokio::time::timeout(Duration::from_millis(150), stream.read(&mut buf)).await {
+        let n = match tokio::time::timeout(Duration::from_millis(200), stream.read(&mut buf)).await {
             Ok(Ok(read_bytes)) if read_bytes > 0 => read_bytes,
             _ => return None,
         };
@@ -79,10 +79,11 @@ impl HttpFingerprintProvider {
             }
         }
 
-        // 3. Known CFTV Brands
-        if resp_lower.contains("/doc/index.html") || resp_lower.contains("hikvision") || resp_lower.contains("app-webserver") || resp_lower.contains("web version") {
+        // 3. Known CFTV Signatures
+        if resp_lower.contains("/doc/index.html") || resp_lower.contains("hikvision") || resp_lower.contains("app-webserver") 
+            || resp_lower.contains("web version") || resp_lower.contains("web/index.html") {
             fp.is_hikvision = true;
-        } else if resp_lower.contains("dahua") || resp_lower.contains("quick_config") || resp_lower.contains("web/index.html") {
+        } else if resp_lower.contains("dahua") || resp_lower.contains("quick_config") {
             fp.is_dahua = true;
         } else if resp_lower.contains("intelbras") || resp_lower.contains("sim next") {
             fp.is_intelbras = true;

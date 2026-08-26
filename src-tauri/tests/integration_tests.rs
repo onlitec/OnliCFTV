@@ -278,3 +278,39 @@ fn test_database_crud_and_batch() {
     assert_eq!(batch_res.len(), 2);
     let _ = std::fs::remove_file(db_path);
 }
+
+#[test]
+fn test_camera_172_20_120_44_without_sadp_onvif() {
+    let ports = OpenPorts {
+        rtsp_554: true,
+        hikvision_8000: true,
+        http_80: true,
+        ..Default::default()
+    };
+
+    let http_fp = HttpFingerprint {
+        is_hikvision: true,
+        server_header: Some("webserver".to_string()),
+        ..Default::default()
+    };
+
+    let ctx = ClassificationContext {
+        ip: "172.20.120.44",
+        mac: Some("84:94:59:ef:82:00"), // Hikvision OUI 84:94:59
+        hardware_model: "",
+        scopes: "",
+        name: "",
+        has_sadp: false,
+        sadp_model: None,
+        has_onvif: false,
+        open_ports: &ports,
+        http_fp: Some(&http_fp),
+        is_default_gateway: false,
+    };
+
+    let res = classify_device(&ctx);
+    assert_eq!(res.device_type, DeviceType::IpCamera);
+    assert_eq!(res.device_type_label, "Câmera IP");
+    assert_eq!(res.brand, "Hikvision");
+    assert!(res.confidence_score >= 80);
+}

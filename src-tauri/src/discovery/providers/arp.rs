@@ -32,15 +32,21 @@ impl ArpProvider {
 
         match prefix {
             // Hikvision OUIs
-            "c056e3" | "4419b6" | "c8028f" | "accb51" | "bcba85" | "1868cb" | "ec7443" | "e454e8" | "5803fb" => {
+            "849459" | "849a40" | "c056e3" | "4419b6" | "c8028f" | "accb51" | "bcba85" 
+            | "1868cb" | "ec7443" | "e454e8" | "5803fb" | "2857be" | "24698e" | "6014b3" 
+            | "706a94" | "f84d89" | "b4a382" | "a41437" | "40163b" | "001212" | "d0b5c2" 
+            | "30f772" | "68db54" | "9c1463" | "085411" | "d43423" | "e8abfa" | "101b54" 
+            | "38702c" | "9002a9" | "b0f963" | "dc8b28" | "7483c2" | "ac1203" => {
                 Some("Hikvision".to_string())
             }
             // Intelbras OUIs
-            "f86b40" | "887a02" | "589920" | "e82845" | "34fb58" | "e46f13" => {
+            "f86b40" | "887a02" | "589920" | "e82845" | "34fb58" | "e46f13" | "001a3f" 
+            | "002191" | "d824bd" | "305a3a" | "a0f3c1" => {
                 Some("Intelbras".to_string())
             }
             // Dahua OUIs
-            "38af29" | "bc325f" | "e0508b" | "ec71db" | "9002a9" | "ac8b98" => {
+            "38af29" | "bc325f" | "e0508b" | "ec71db" | "ac8b98" | "4ce676" | "14a78b" 
+            | "b84497" | "282c02" | "a0bdcd" | "e46f14" => {
                 Some("Dahua".to_string())
             }
             // Axis OUIs
@@ -48,12 +54,24 @@ impl ArpProvider {
                 Some("Axis".to_string())
             }
             // TP-Link OUIs
-            "50d4f7" | "984827" | "b0be76" | "c006c3" | "d80d17" => {
+            "50d4f7" | "984827" | "b0be76" | "c006c3" | "d80d17" | "e4c32a" | "704f57" => {
                 Some("TP-Link".to_string())
             }
             // Ubiquiti OUIs
-            "24a43c" | "0418d6" | "dc9fdb" | "687251" | "788a20" => {
+            "24a43c" | "0418d6" | "dc9fdb" | "687251" | "788a20" | "f09fc2" | "802aa8" => {
                 Some("Ubiquiti".to_string())
+            }
+            // Cisco OUIs
+            "00000c" | "000142" | "000143" | "000163" | "000164" | "000196" | "000197" => {
+                Some("Cisco".to_string())
+            }
+            // Dell OUIs
+            "001422" | "00188b" | "0019b9" | "001a64" | "00219b" => {
+                Some("Dell".to_string())
+            }
+            // HP OUIs
+            "0001e6" | "0002b3" | "000802" | "000bcd" | "000e7f" => {
+                Some("HP".to_string())
             }
             _ => None,
         }
