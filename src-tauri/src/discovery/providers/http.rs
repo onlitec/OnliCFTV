@@ -20,7 +20,7 @@ impl HttpFingerprintProvider {
     pub async fn fingerprint(ip: &str, port: u16) -> Option<HttpFingerprint> {
         let addr = format!("{}:{}", ip, port);
         let mut stream = tokio::time::timeout(
-            Duration::from_millis(300),
+            Duration::from_millis(120),
             TcpStream::connect(&addr)
         ).await.ok()?.ok()?;
 
@@ -33,8 +33,8 @@ impl HttpFingerprintProvider {
             return None;
         }
 
-        let mut buf = [0u8; 8192];
-        let n = match tokio::time::timeout(Duration::from_millis(350), stream.read(&mut buf)).await {
+        let mut buf = [0u8; 4096];
+        let n = match tokio::time::timeout(Duration::from_millis(150), stream.read(&mut buf)).await {
             Ok(Ok(read_bytes)) if read_bytes > 0 => read_bytes,
             _ => return None,
         };

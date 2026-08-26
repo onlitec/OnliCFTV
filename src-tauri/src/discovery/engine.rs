@@ -1,4 +1,6 @@
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use crate::discovery::types::{DiscoveredDevice, NetworkInterfaceInfo, DiscoveryProgress};
 use crate::discovery::network_interfaces::NetworkInterfaceManager;
@@ -62,8 +64,8 @@ impl DiscoveryEngine {
         });
 
         let (sadp_devices, onvif_devices) = tokio::join!(
-            SadpProvider::probe(&broadcast_targets, Duration::from_millis(1200)),
-            OnvifProvider::probe(&broadcast_targets, Duration::from_millis(1200))
+            SadpProvider::probe(&broadcast_targets, Duration::from_millis(800)),
+            OnvifProvider::probe(&broadcast_targets, Duration::from_millis(800))
         );
 
         for dev in sadp_devices {
@@ -73,22 +75,26 @@ impl DiscoveryEngine {
             deduplicator.insert_or_merge(dev);
         }
 
-        // Phase 3: Active Subnet Sweep on selected interface prefix (65%)
+        // Phase 3: Active Subnet Sweep with Bounded Concurrency (65%)
         let subnet_prefix = selected_iface.ip.rsplit_once('.').map(|(p, _)| p).unwrap_or("172.20.120");
 
         progress_callback(DiscoveryProgress {
             percentage: 65,
-            phase: format!("Varrendo portas de CFTV, Servidores e Switches na rede {}...", subnet_prefix),
+            phase: format!("Varrendo portas na rede {}...", subnet_prefix),
             devices_found: 0,
-            active_protocols: vec!["TCP".to_string(), "RTSP".to_string(), "HTTP".to_string(), "SSH".to_string(), "SNMP".to_string()],
+            active_protocols: vec!["TCP".to_string(), "RTSP".to_string(), "HTTP".to_string()],
             completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string()],
             is_running: true,
         });
 
+        let semaphore = Arc::new(Semaphore::new(48));
         let mut tcp_set = JoinSet::new();
+
         for i in 1..=254 {
             let ip_str = format!("{}.{}", subnet_prefix, i);
+            let sem = semaphore.clone();
             tcp_set.spawn(async move {
+                let _permit = sem.acquire().await.ok();
                 let open_ports = TcpPortProvider::check_all_ports(&ip_str).await;
                 (ip_str, open_ports)
             });
@@ -108,84 +114,99 @@ impl DiscoveryEngine {
             }
         }
 
-        // Phase 4: HTTP Fingerprinting on hosts with web interfaces (85%)
+        // Phase 4: Parallel HTTP Fingerprinting (85%)
         progress_callback(DiscoveryProgress {
             percentage: 85,
-            phase: "Coletando assinaturas HTTP, banners e títulos de serviços...".to_string(),
+            phase: "Coletando assinaturas HTTP e títulos de serviços...".to_string(),
             devices_found: active_hosts.len(),
             active_protocols: vec!["HTTP Fingerprint".to_string()],
             completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string(), "TCP".to_string()],
             is_running: true,
         });
 
+        let http_sem = Arc::new(Semaphore::new(32));
+        let mut http_set = JoinSet::new();
+
         for (ip_str, ports) in active_hosts {
-            let http_fp = if ports.http_80 {
-                HttpFingerprintProvider::fingerprint(&ip_str, 80).await
-            } else if ports.http_8080 {
-                HttpFingerprintProvider::fingerprint(&ip_str, 8080).await
-            } else if ports.https_443 {
-                HttpFingerprintProvider::fingerprint(&ip_str, 443).await
-            } else {
-                None
-            };
+            let sem = http_sem.clone();
+            let default_gw = default_gw_ip.clone();
+            let arp_mac = arp_table.get(&ip_str).cloned();
 
-            let mac = arp_table.get(&ip_str).cloned();
-            let is_gw = !default_gw_ip.is_empty() && ip_str == default_gw_ip;
+            http_set.spawn(async move {
+                let _permit = sem.acquire().await.ok();
+                let http_fp = if ports.http_80 {
+                    HttpFingerprintProvider::fingerprint(&ip_str, 80).await
+                } else if ports.http_8080 {
+                    HttpFingerprintProvider::fingerprint(&ip_str, 8080).await
+                } else if ports.https_443 {
+                    HttpFingerprintProvider::fingerprint(&ip_str, 443).await
+                } else {
+                    None
+                };
 
-            let mut protocols = Vec::new();
-            if ports.rtsp_554 { protocols.push("RTSP:554".to_string()); }
-            if ports.hikvision_8000 { protocols.push("SDK:8000".to_string()); }
-            if ports.dahua_37777 { protocols.push("SDK:37777".to_string()); }
-            if ports.http_80 { protocols.push("HTTP:80".to_string()); }
-            if ports.https_443 { protocols.push("HTTPS:443".to_string()); }
-            if ports.ssh_22 { protocols.push("SSH:22".to_string()); }
-            if ports.smb_445 { protocols.push("SMB:445".to_string()); }
-            if ports.postgres_5432 { protocols.push("Postgres:5432".to_string()); }
-            if ports.mysql_3306 { protocols.push("MySQL:3306".to_string()); }
-            if ports.docker_2375 { protocols.push("Docker:2375".to_string()); }
-            if ports.snmp_161 { protocols.push("SNMP:161".to_string()); }
-            if ports.dns_53 { protocols.push("DNS:53".to_string()); }
+                let is_gw = !default_gw.is_empty() && ip_str == default_gw;
 
-            let ctx = ClassificationContext {
-                ip: &ip_str,
-                mac: mac.as_deref(),
-                hardware_model: "",
-                scopes: "",
-                name: "",
-                has_sadp: false,
-                sadp_model: None,
-                has_onvif: false,
-                open_ports: &ports,
-                http_fp: http_fp.as_ref(),
-                is_default_gateway: is_gw,
-            };
+                let mut protocols = Vec::new();
+                if ports.rtsp_554 { protocols.push("RTSP:554".to_string()); }
+                if ports.hikvision_8000 { protocols.push("SDK:8000".to_string()); }
+                if ports.dahua_37777 { protocols.push("SDK:37777".to_string()); }
+                if ports.http_80 { protocols.push("HTTP:80".to_string()); }
+                if ports.https_443 { protocols.push("HTTPS:443".to_string()); }
+                if ports.ssh_22 { protocols.push("SSH:22".to_string()); }
+                if ports.smb_445 { protocols.push("SMB:445".to_string()); }
+                if ports.postgres_5432 { protocols.push("Postgres:5432".to_string()); }
+                if ports.mysql_3306 { protocols.push("MySQL:3306".to_string()); }
+                if ports.docker_2375 { protocols.push("Docker:2375".to_string()); }
+                if ports.snmp_161 { protocols.push("SNMP:161".to_string()); }
+                if ports.dns_53 { protocols.push("DNS:53".to_string()); }
 
-            let res = classify_device(&ctx);
+                let ctx = ClassificationContext {
+                    ip: &ip_str,
+                    mac: arp_mac.as_deref(),
+                    hardware_model: "",
+                    scopes: "",
+                    name: "",
+                    has_sadp: false,
+                    sadp_model: None,
+                    has_onvif: false,
+                    open_ports: &ports,
+                    http_fp: http_fp.as_ref(),
+                    is_default_gateway: is_gw,
+                };
 
-            deduplicator.insert_or_merge(DiscoveredDevice {
-                id: mac.clone().unwrap_or_else(|| ip_str.clone()),
-                ip: ip_str.clone(),
-                mac,
-                brand: res.brand,
-                hardware_model: res.hardware_model,
-                name: res.name,
-                device_type: res.device_type,
-                device_type_label: res.device_type_label,
-                serial_number: None,
-                firmware_version: None,
-                activation_status: Some("Ativo".to_string()),
-                rtsp_port: if ports.rtsp_554 { 554 } else { 0 },
-                http_port: if ports.http_80 { 80 } else if ports.http_8080 { 8080 } else if ports.https_443 { 443 } else { 0 },
-                sdk_port: if ports.hikvision_8000 { 8000 } else if ports.dahua_37777 { 37777 } else { 0 },
-                protocols,
-                confidence_score: res.confidence_score,
-                confidence_level: res.confidence_level,
-                evidences: res.evidences,
-                contradictions: res.contradictions,
-                issues: Vec::new(),
-                xaddrs: if ports.http_80 { format!("http://{}:80/onvif/device_service", ip_str) } else { String::new() },
-                is_already_added: false,
+                let res = classify_device(&ctx);
+
+                DiscoveredDevice {
+                    id: arp_mac.clone().unwrap_or_else(|| ip_str.clone()),
+                    ip: ip_str.clone(),
+                    mac: arp_mac,
+                    brand: res.brand,
+                    hardware_model: res.hardware_model,
+                    name: res.name,
+                    device_type: res.device_type,
+                    device_type_label: res.device_type_label,
+                    serial_number: None,
+                    firmware_version: None,
+                    activation_status: Some("Ativo".to_string()),
+                    rtsp_port: if ports.rtsp_554 { 554 } else { 0 },
+                    http_port: if ports.http_80 { 80 } else if ports.http_8080 { 8080 } else if ports.https_443 { 443 } else { 0 },
+                    sdk_port: if ports.hikvision_8000 { 8000 } else if ports.dahua_37777 { 37777 } else { 0 },
+                    protocols,
+                    confidence_score: res.confidence_score,
+                    confidence_level: res.confidence_level,
+                    evidences: res.evidences,
+                    contradictions: res.contradictions,
+                    issues: Vec::new(),
+                    xaddrs: if ports.http_80 { format!("http://{}:80/onvif/device_service", ip_str) } else { String::new() },
+                    is_already_added: false,
+                }
             });
+        }
+
+        while let Some(res) = http_set.join_next().await {
+            if let Ok(dev) = res {
+                deduplicator.insert_or_merge(dev);
+            }
         }
 
         // Phase 5: Consolidate & Diagnose (100%)
