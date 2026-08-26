@@ -65,6 +65,16 @@ async fn delete_camera(id: String, state: State<'_, AppState>) -> Result<(), Str
 }
 
 #[tauri::command]
+async fn delete_cameras_batch(ids: Vec<String>, state: State<'_, AppState>) -> Result<usize, String> {
+    state.camera_manager.delete_cameras_batch(ids).await
+}
+
+#[tauri::command]
+async fn delete_all_cameras(state: State<'_, AppState>) -> Result<usize, String> {
+    state.camera_manager.delete_all_cameras().await
+}
+
+#[tauri::command]
 async fn test_camera_connection(input: CreateCameraInput, state: State<'_, AppState>) -> Result<CameraConnectionTestResult, String> {
     Ok(state.camera_manager.test_connection(input).await)
 }
@@ -183,6 +193,8 @@ pub fn run() {
             discover_devices,
             update_camera,
             delete_camera,
+            delete_cameras_batch,
+            delete_all_cameras,
             test_camera_connection,
             test_existing_camera,
             start_stream,

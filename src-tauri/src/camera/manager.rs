@@ -85,6 +85,25 @@ impl CameraManager {
         Ok(())
     }
 
+    pub async fn delete_cameras_batch(&self, ids: Vec<String>) -> Result<usize, String> {
+        for id in &ids {
+            self.video_engine.stop(id).await.ok();
+        }
+        let count = self.db.delete_cameras_batch(&ids)?;
+        self.log_store.log("INFO", "CameraManager", &format!("Removidas {} câmeras em lote", count));
+        Ok(count)
+    }
+
+    pub async fn delete_all_cameras(&self) -> Result<usize, String> {
+        let all_cams = self.db.get_cameras().unwrap_or_default();
+        for cam in &all_cams {
+            self.video_engine.stop(&cam.id).await.ok();
+        }
+        let count = self.db.delete_all_cameras()?;
+        self.log_store.log("INFO", "CameraManager", &format!("Todas as {} câmeras foram removidas", count));
+        Ok(count)
+    }
+
     pub async fn test_connection(&self, input: CreateCameraInput) -> CameraConnectionTestResult {
         let host = input.host.trim();
         let port = input.rtsp_port.unwrap_or(554);

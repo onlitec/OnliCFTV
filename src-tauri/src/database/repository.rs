@@ -280,6 +280,24 @@ impl Database {
             .map_err(|e| e.to_string())?;
         Ok(())
     }
+
+    pub fn delete_cameras_batch(&self, ids: &[String]) -> Result<usize, String> {
+        let mut lock = self.conn.lock().unwrap();
+        let tx = lock.transaction().map_err(|e| e.to_string())?;
+        let mut count = 0;
+        for id in ids {
+            count += tx.execute("DELETE FROM cameras WHERE id = ?1", params![id])
+                .map_err(|e| e.to_string())?;
+        }
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(count)
+    }
+
+    pub fn delete_all_cameras(&self) -> Result<usize, String> {
+        let lock = self.conn.lock().unwrap();
+        let count = lock.execute("DELETE FROM cameras", []).map_err(|e| e.to_string())?;
+        Ok(count)
+    }
 }
 
 pub fn format_default_rtsp_url(host: &str, port: u16, profile: &str) -> String {

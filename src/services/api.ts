@@ -49,6 +49,14 @@ export const api = {
     return await invoke('delete_camera', { id });
   },
 
+  async deleteCamerasBatch(ids: string[]): Promise<number> {
+    return await invoke('delete_cameras_batch', { ids });
+  },
+
+  async deleteAllCameras(): Promise<number> {
+    return await invoke('delete_all_cameras');
+  },
+
   async testCameraConnection(input: CreateCameraInput): Promise<CameraConnectionTestResult> {
     return await invoke('test_camera_connection', { input });
   },
