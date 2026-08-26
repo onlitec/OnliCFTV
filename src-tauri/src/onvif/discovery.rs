@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::UdpSocket;
 use uuid::Uuid;
-use crate::camera::model::DiscoveredDevice;
+use crate::camera::model::{DiscoveredDevice, DeviceType};
 
 pub struct OnvifDiscovery;
 
@@ -39,7 +39,7 @@ impl OnvifDiscovery {
 
         let probe_bytes = probe_xml.as_bytes();
 
-        // Send to ONVIF multicast and local subnet broadcast addresses
+        // Send to ONVIF multicast and common subnet broadcast addresses
         let targets = [
             "239.255.255.250:3702",
             "255.255.255.255:3702",
@@ -109,16 +109,75 @@ pub fn parse_probe_matches(xml: &str, sender_ip: String) -> Option<DiscoveredDev
         .unwrap_or_default();
 
     let (name, model, brand) = parse_scopes(&scopes, &ip);
+    let (device_type, device_type_label) = infer_device_type(&model, &scopes, &name);
 
     Some(DiscoveredDevice {
         ip,
         name,
         hardware_model: model,
         brand,
+        device_type,
+        device_type_label,
         xaddrs,
         rtsp_port: 554,
         is_already_added: false,
     })
+}
+
+pub fn infer_device_type(hardware_model: &str, scopes: &str, name: &str) -> (DeviceType, String) {
+    let m = hardware_model.to_uppercase();
+    let s = scopes.to_lowercase();
+    let n = name.to_uppercase();
+
+    // 1. Tráfego / Leitura de Placa (LPR / ANPR) / Radar
+    if m.starts_with("DS-TCG") || m.starts_with("DS-TPE") || m.starts_with("IDS-2CD9") 
+        || m.starts_with("IDS-T") || m.starts_with("ITC") || m.contains("LPR") 
+        || m.contains("ANPR") || s.contains("traffic") || s.contains("anpr") 
+        || s.contains("lpr") || s.contains("radar") || s.contains("checkpoint") 
+        || n.contains("LPR") || n.contains("TRAFEGO") || n.contains("RADAR") {
+        return (DeviceType::TrafficLpr, "Câmera de Tráfego / LPR".to_string());
+    }
+
+    // 2. Intercom / Videoporteiro / Comunicação / Controle de Acesso
+    if m.starts_with("DS-KB") || m.starts_with("DS-KD") || m.starts_with("DS-KH") 
+        || m.starts_with("DS-KV") || m.starts_with("DS-K1") || m.starts_with("DS-K2")
+        || m.starts_with("VTO") || m.starts_with("VTH") || m.starts_with("PVIP")
+        || m.starts_with("ALLO") || m.contains("DOOR") || m.contains("INTERCOM")
+        || s.contains("intercom") || s.contains("door") || s.contains("access_control")
+        || n.contains("INTERFONE") || n.contains("VIDEOPORTEIRO") || n.contains("CAMPANHIA") {
+        return (DeviceType::Intercom, "Videoporteiro / Comunicação".to_string());
+    }
+
+    // 3. NVR / DVR / Gravador de Vídeo
+    if m.starts_with("DS-76") || m.starts_with("DS-77") || m.starts_with("DS-96") 
+        || m.starts_with("DS-71") || m.starts_with("DS-72") || m.starts_with("DS-73") 
+        || m.starts_with("DS-81") || m.starts_with("IDS-76") || m.starts_with("IDS-77") 
+        || m.starts_with("IDS-96") || m.starts_with("NVD") || m.starts_with("MHDX") 
+        || m.starts_with("NVR") || m.starts_with("XVR") || m.starts_with("HCVR")
+        || s.contains("profile/g") || s.contains("recording") || s.contains("nvr") || s.contains("dvr") {
+        return (DeviceType::Nvr, "NVR / Gravador".to_string());
+    }
+
+    // 4. Câmera PTZ / Speed Dome
+    if m.starts_with("DS-2DE") || m.starts_with("DS-2DF") || m.starts_with("DS-2DY") 
+        || m.starts_with("IDS-2DE") || m.starts_with("SD") || m.contains(" PTZ") 
+        || m.contains("SPEED") || s.contains("type/ptz") || s.contains("ptz") || s.contains("speeddome") {
+        return (DeviceType::Ptz, "Câmera PTZ / Speed Dome".to_string());
+    }
+
+    // 5. Câmera Térmica
+    if m.starts_with("DS-2TD") || s.contains("thermal") || s.contains("thermography") || m.contains("THERMAL") {
+        return (DeviceType::Thermal, "Câmera Térmica".to_string());
+    }
+
+    // 6. Câmera IP Convencional (Bullet, Dome, Turret)
+    if m.starts_with("DS-2CD") || m.starts_with("DS-2CV") || m.starts_with("IDS-2CD") 
+        || m.starts_with("VIP") || m.starts_with("IPC") || m.starts_with("DH-IPC") 
+        || s.contains("video_encoder") || s.contains("streaming") {
+        return (DeviceType::IpCamera, "Câmera IP".to_string());
+    }
+
+    (DeviceType::Other, "Dispositivo CFTV".to_string())
 }
 
 fn extract_tag_content(xml: &str, tag_name: &str) -> Option<String> {
@@ -136,7 +195,6 @@ fn extract_tag_content(xml: &str, tag_name: &str) -> Option<String> {
 }
 
 fn extract_ip_from_url(url: &str) -> Option<String> {
-    // Looks for http://172.20.120.67:80/... or http://172.20.120.67/...
     for word in url.split_whitespace() {
         if let Some(pos) = word.find("://") {
             let host_part = &word[pos + 3..];

@@ -1,5 +1,23 @@
 use serde::{Serialize, Deserialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DeviceType {
+    IpCamera,
+    Nvr,
+    Intercom,
+    TrafficLpr,
+    Ptz,
+    Thermal,
+    Other,
+}
+
+impl Default for DeviceType {
+    fn default() -> Self {
+        DeviceType::IpCamera
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Camera {
     pub id: String,
@@ -58,6 +76,8 @@ pub struct DiscoveredDevice {
     pub name: String,
     pub hardware_model: String,
     pub brand: String,
+    pub device_type: DeviceType,
+    pub device_type_label: String,
     pub xaddrs: String,
     pub rtsp_port: u16,
     pub is_already_added: bool,

@@ -2,16 +2,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { MainLayout } from '@/layouts/MainLayout';
 import type { NavTab } from '@/components/Sidebar';
 import { DashboardPage } from '@/pages/DashboardPage';
-import { CameraList } from '@/cameras/CameraList';
 import { CameraModal } from '@/cameras/CameraModal';
-import { DiscoveryModal } from '@/cameras/DiscoveryModal';
 import { LiveView } from '@/video/LiveView';
-import { DiagnosticsPage } from '@/diagnostics/DiagnosticsPage';
 import { SettingsPage } from '@/settings/SettingsPage';
-import { RecordingsPage } from '@/pages/RecordingsPage';
-import { EventsPage } from '@/pages/EventsPage';
 
-import type { Camera, CameraStreamStatus, AppConfig, DiscoveredDevice, CreateCameraInput } from '@/types';
+import type {
+  Camera,
+  CameraStreamStatus,
+  AppConfig,
+  DiscoveredDevice,
+  CreateCameraInput,
+} from '@/types';
 import { api } from '@/services/api';
 
 export const App: React.FC = () => {
@@ -19,10 +20,11 @@ export const App: React.FC = () => {
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [streamStatuses, setStreamStatuses] = useState<Record<string, CameraStreamStatus>>({});
   const [discoveredDevices, setDiscoveredDevices] = useState<DiscoveredDevice[]>([]);
-  
+  const [isScanning, setIsScanning] = useState(false);
+  const [selectedLiveCameraId, setSelectedLiveCameraId] = useState<string | null>(null);
+
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const [cameraToEdit, setCameraToEdit] = useState<Camera | null>(null);
   const [prefillCameraData, setPrefillCameraData] = useState<CreateCameraInput | null>(null);
 
@@ -55,11 +57,14 @@ export const App: React.FC = () => {
 
   // Background auto-scan for network devices
   const runDiscoveryScan = useCallback(async () => {
+    setIsScanning(true);
     try {
       const found = await api.discoverDevices();
       setDiscoveredDevices(found);
     } catch (e) {
       console.error('Auto discovery scan error:', e);
+    } finally {
+      setIsScanning(false);
     }
   }, []);
 
@@ -151,34 +156,23 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleOpenLiveCamera = (cameraId: string) => {
+    setSelectedLiveCameraId(cameraId || null);
+    setCurrentTab('live');
+  };
+
   const onlineCount = Object.values(streamStatuses).filter((s) => s.state === 'online').length;
   const totalCount = cameras.length;
   const serverPort = appConfig?.video_server_port || 18554;
 
   const tabTitles: Record<NavTab, { title: string; subtitle: string }> = {
     dashboard: {
-      title: 'Painel Geral de Monitoramento',
-      subtitle: 'Visão executiva e telemetria de dispositivos',
-    },
-    cameras: {
-      title: 'Cadastro e Gerenciamento de Câmeras',
-      subtitle: 'Configuração de streams RTSP, credenciais e perfis de vídeo',
+      title: 'Comissionamento & Câmeras',
+      subtitle: 'Visão de dispositivos instalados e busca inteligente na rede local',
     },
     live: {
-      title: 'Mosaico de Visualização Ao Vivo',
-      subtitle: 'Monitoramento multitelas de canais RTSP',
-    },
-    recordings: {
-      title: 'Gravações e Playback',
-      subtitle: 'Histórico de vídeo e reprodução',
-    },
-    events: {
-      title: 'Central de Eventos',
-      subtitle: 'Logs de alarmes e conectividade',
-    },
-    diagnostics: {
-      title: 'Diagnóstico e Telemetria de Streams',
-      subtitle: 'Taxas de quadros, bitrate, latência e logs estruturados',
+      title: 'Visualização Ao Vivo & Enquadramento',
+      subtitle: 'Monitoramento em tempo real para alinhamento de foco e OSD',
     },
     settings: {
       title: 'Configurações do OnliView',
@@ -206,24 +200,19 @@ export const App: React.FC = () => {
             cameras={cameras}
             streamStatuses={streamStatuses}
             discoveredDevices={discoveredDevices}
-            onOpenDiscovery={() => setIsDiscoveryOpen(true)}
-            onNavigateTo={setCurrentTab}
-            onStartStream={handleStartStream}
-          />
-        )}
-
-        {currentTab === 'cameras' && (
-          <CameraList
-            cameras={cameras}
-            streamStatuses={streamStatuses}
-            discoveredDevices={discoveredDevices}
-            onOpenDiscovery={() => setIsDiscoveryOpen(true)}
+            isScanning={isScanning}
+            onRefreshScan={runDiscoveryScan}
             onAddCamera={handleAddCamera}
             onEditCamera={handleEditCamera}
             onDeleteCamera={handleDeleteCamera}
             onStartStream={handleStartStream}
             onStopStream={handleStopStream}
-            onViewLive={() => setCurrentTab('live')}
+            onOpenLiveCamera={handleOpenLiveCamera}
+            onAddSingleFromDiscovery={handleAddSingleFromDiscovery}
+            onDataChanged={() => {
+              loadData();
+              runDiscoveryScan();
+            }}
           />
         )}
 
@@ -235,17 +224,8 @@ export const App: React.FC = () => {
             onStartAll={handleStartAll}
             onStopAll={handleStopAll}
             serverPort={serverPort}
-          />
-        )}
-
-        {currentTab === 'recordings' && <RecordingsPage />}
-        {currentTab === 'events' && <EventsPage />}
-
-        {currentTab === 'diagnostics' && (
-          <DiagnosticsPage
-            cameras={cameras}
-            streamStatuses={streamStatuses}
-            serverPort={serverPort}
+            selectedCameraId={selectedLiveCameraId}
+            onBackToDashboard={() => setCurrentTab('dashboard')}
           />
         )}
 
@@ -264,16 +244,6 @@ export const App: React.FC = () => {
         }}
         cameraToEdit={cameraToEdit}
         prefillData={prefillCameraData}
-      />
-
-      <DiscoveryModal
-        isOpen={isDiscoveryOpen}
-        onClose={() => setIsDiscoveryOpen(false)}
-        onAdded={() => {
-          loadData();
-          runDiscoveryScan();
-        }}
-        onAddSingle={handleAddSingleFromDiscovery}
       />
     </>
   );

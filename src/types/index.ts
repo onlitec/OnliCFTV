@@ -1,5 +1,14 @@
 export type StreamState = 'online' | 'offline' | 'connecting' | 'error';
 
+export type DeviceType =
+  | 'ip_camera'
+  | 'nvr'
+  | 'intercom'
+  | 'traffic_lpr'
+  | 'ptz'
+  | 'thermal'
+  | 'other';
+
 export interface Camera {
   id: string;
   name: string;
@@ -41,10 +50,14 @@ export interface DiscoveredDevice {
   name: string;
   hardware_model: string;
   brand: string;
+  device_type: DeviceType;
+  device_type_label: string;
   xaddrs: string;
   rtsp_port: number;
-  is_already_added: boolean;
+  is_already_added: bool_or_boolean;
 }
+
+type bool_or_boolean = boolean;
 
 export interface BatchDeviceItem {
   name: string;
