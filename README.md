@@ -20,18 +20,9 @@
 
 ---
 
-## 📸 Telas do Sistema
+## 📸 Interface do OnliView
 
-### 1. Interface de Alta Densidade (HiTools Delivery Style — Tema Claro & Escuro)
-A tela de **Descoberta & Comissionamento** ocupa 100% da área útil do técnico instalador, fornecendo pesquisa instantânea, filtros por categoria, previews ao vivo em miniaturas e seleção em lote:
-
-<div align="center">
-  <img src="docs/tela-hitools-delivery.png" alt="OnliView HiTools Style Interface" width="850" />
-</div>
-
-<br/>
-
-### 2. Quick Viewer & Configuração Rápida em Campo
+### Descoberta, Quick Viewer & Comissionamento em Campo
 Visualização instantânea do stream ao vivo, telemetria em tempo real (Codec, Resolução, FPS, Latência), diagnóstico de rede e alteração direta de **Device Name** e **OSD** via ISAPI com autenticação Digest:
 
 <div align="center">
