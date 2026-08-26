@@ -69,3 +69,51 @@ pub struct BatchCreateCamerasInput {
     pub password: Option<String>,
     pub stream_profile: String, // "main" | "sub"
 }
+
+pub use crate::camera::isapi::{DeviceCapabilities, UserPermission, IsapiDeviceInfo};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuickViewConnectInput {
+    pub ip: String,
+    pub rtsp_port: Option<u16>,
+    pub http_port: Option<u16>,
+    pub username: String,
+    pub password: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuickViewSetDeviceNameInput {
+    pub ip: String,
+    pub http_port: Option<u16>,
+    pub username: String,
+    pub password: Option<String>,
+    pub new_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuickViewSetOsdInput {
+    pub ip: String,
+    pub http_port: Option<u16>,
+    pub channel_id: Option<u32>,
+    pub username: String,
+    pub password: Option<String>,
+    pub new_osd: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuickViewSessionInfo {
+    pub ip: String,
+    pub rtsp_port: u16,
+    pub http_port: u16,
+    pub brand: String,
+    pub hardware_model: String,
+    pub serial_number: Option<String>,
+    pub firmware_version: Option<String>,
+    pub mac_address: Option<String>,
+    pub device_name: String,
+    pub osd_text: String,
+    pub stream_url: String,
+    pub local_mjpeg_url: String,
+    pub capabilities: DeviceCapabilities,
+    pub metrics: CameraConnectionTestResult,
+}

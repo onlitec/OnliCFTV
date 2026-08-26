@@ -110,6 +110,26 @@ async fn get_app_config(state: State<'_, AppState>) -> Result<AppConfig, String>
     Ok(state.config.clone())
 }
 
+#[tauri::command]
+async fn quick_view_connect(input: QuickViewConnectInput, state: State<'_, AppState>) -> Result<QuickViewSessionInfo, String> {
+    state.camera_manager.quick_view_connect(input).await
+}
+
+#[tauri::command]
+async fn quick_view_disconnect(ip: String, state: State<'_, AppState>) -> Result<(), String> {
+    state.camera_manager.quick_view_disconnect(&ip).await
+}
+
+#[tauri::command]
+async fn quick_view_set_device_name(input: QuickViewSetDeviceNameInput, state: State<'_, AppState>) -> Result<(), String> {
+    state.camera_manager.quick_view_set_device_name(input).await
+}
+
+#[tauri::command]
+async fn quick_view_set_osd(input: QuickViewSetOsdInput, state: State<'_, AppState>) -> Result<(), String> {
+    state.camera_manager.quick_view_set_osd(input).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let config = AppConfig::default();
@@ -161,7 +181,11 @@ pub fn run() {
             get_all_stream_statuses,
             get_logs,
             clear_logs,
-            get_app_config
+            get_app_config,
+            quick_view_connect,
+            quick_view_disconnect,
+            quick_view_set_device_name,
+            quick_view_set_osd
         ])
         .run(tauri::generate_context!())
         .expect("error while running OnliView application");

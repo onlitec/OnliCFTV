@@ -10,6 +10,10 @@ import type {
   CameraStreamStatus,
   LogEntry,
   AppConfig,
+  QuickViewConnectInput,
+  QuickViewSessionInfo,
+  QuickViewSetDeviceNameInput,
+  QuickViewSetOsdInput,
 } from '@/types';
 
 export const api = {
@@ -79,5 +83,21 @@ export const api = {
 
   async getAppConfig(): Promise<AppConfig> {
     return await invoke('get_app_config');
+  },
+
+  async quickViewConnect(input: QuickViewConnectInput): Promise<QuickViewSessionInfo> {
+    return await invoke('quick_view_connect', { input });
+  },
+
+  async quickViewDisconnect(ip: string): Promise<void> {
+    return await invoke('quick_view_disconnect', { ip });
+  },
+
+  async quickViewSetDeviceName(input: QuickViewSetDeviceNameInput): Promise<void> {
+    return await invoke('quick_view_set_device_name', { input });
+  },
+
+  async quickViewSetOsd(input: QuickViewSetOsdInput): Promise<void> {
+    return await invoke('quick_view_set_osd', { input });
   },
 };

@@ -1,5 +1,6 @@
 use crate::database::Database;
 use crate::camera::model::*;
+use crate::camera::isapi::IsapiClient;
 use crate::rtsp::client::build_authenticated_rtsp_url;
 use crate::rtsp::probe::probe_rtsp_stream;
 use crate::video::engine::VideoEngineManager;
@@ -129,5 +130,124 @@ impl CameraManager {
 
     pub async fn stop_camera_stream(&self, camera_id: &str) -> Result<(), String> {
         self.video_engine.stop(camera_id).await
+    }
+}
+
+impl CameraManager {
+    pub async fn quick_view_connect(&self, input: QuickViewConnectInput) -> Result<QuickViewSessionInfo, String> {
+        let host = input.ip.trim().to_string();
+        let rtsp_port = input.rtsp_port.unwrap_or(554);
+        let http_port = input.http_port.unwrap_or(80);
+        let username = input.username.trim().to_string();
+        let password = input.password.unwrap_or_default();
+
+        self.log_store.log("INFO", "QuickViewer", &format!("Autenticando sessão Quick View para dispositivo: {}", host));
+
+        let isapi_client = IsapiClient::new(&host, http_port, &username, &password);
+
+        // 1. Fetch ISAPI Device Info or fallback
+        let (dev_name, model, serial, firmware, mac, brand) = match isapi_client.get_device_info().await {
+            Ok(info) => {
+                (info.device_name, info.model, info.serial_number, info.firmware_version, info.mac_address, "Hikvision".to_string())
+            }
+            Err(e) => {
+                self.log_store.log("WARN", "QuickViewer", &format!("ISAPI deviceInfo não disponível ({}), tentando modo direto RTSP", e));
+                (format!("Câmera {}", host), "Câmera IP".to_string(), None, None, None, "Câmera IP".to_string())
+            }
+        };
+
+        // 2. Fetch OSD
+        let osd_text = isapi_client.get_osd_title(1).await.unwrap_or_default();
+
+        // 3. Detect Capabilities
+        let capabilities = isapi_client.detect_capabilities().await;
+
+        // 4. Discover Stream URL
+        let channel_path = isapi_client.discover_streaming_channel_url().await;
+        let full_rtsp_url = build_authenticated_rtsp_url(&host, rtsp_port, &username, &password, &channel_path);
+
+        // 5. Probe Stream Metrics via ffprobe
+        self.log_store.log("INFO", "QuickViewer", &format!("Sondando capacidades e métricas de vídeo para {}", host));
+        let metrics = probe_rtsp_stream(&full_rtsp_url).await;
+
+        // 6. Start Video Stream in VideoEngine with quick view session key
+        let session_id = format!("quick_view_{}", host.replace('.', "_"));
+        if let Err(e) = self.video_engine.connect(&session_id, &full_rtsp_url).await {
+            self.log_store.log("ERROR", "QuickViewer", &format!("Erro ao iniciar stream de vídeo: {}", e));
+            return Err(e);
+        }
+
+        let local_mjpeg_url = format!("http://127.0.0.1:{}/stream/{}", self.video_engine.server_port(), session_id);
+
+        self.log_store.log("INFO", "QuickViewer", &format!("Sessão Quick View estabelecida com sucesso para {}", host));
+
+        Ok(QuickViewSessionInfo {
+            ip: host,
+            rtsp_port,
+            http_port,
+            brand,
+            hardware_model: model,
+            serial_number: serial,
+            firmware_version: firmware,
+            mac_address: mac,
+            device_name: dev_name,
+            osd_text,
+            stream_url: full_rtsp_url,
+            local_mjpeg_url,
+            capabilities,
+            metrics,
+        })
+    }
+
+    pub async fn quick_view_disconnect(&self, ip: &str) -> Result<(), String> {
+        let session_id = format!("quick_view_{}", ip.trim().replace('.', "_"));
+        self.video_engine.stop(&session_id).await.ok();
+        self.log_store.log("INFO", "QuickViewer", &format!("Sessão Quick View finalizada para {}", ip));
+        Ok(())
+    }
+
+    pub async fn quick_view_set_device_name(&self, input: QuickViewSetDeviceNameInput) -> Result<(), String> {
+        let host = input.ip.trim();
+        let http_port = input.http_port.unwrap_or(80);
+        let username = input.username.trim();
+        let password = input.password.unwrap_or_default();
+        let new_name = input.new_name.trim();
+
+        self.log_store.log("INFO", "QuickViewer", &format!("Alterando Device Name para '{}' no host {}", new_name, host));
+
+        let isapi_client = IsapiClient::new(host, http_port, username, &password);
+        match isapi_client.set_device_name(new_name).await {
+            Ok(_) => {
+                self.log_store.log("INFO", "Audit", &format!("Operação CHANGE_DEVICE_NAME realizada com sucesso no host {}", host));
+                Ok(())
+            }
+            Err(e) => {
+                self.log_store.log("ERROR", "Audit", &format!("Falha na operação CHANGE_DEVICE_NAME no host {}: {}", host, e));
+                Err(e)
+            }
+        }
+    }
+
+    pub async fn quick_view_set_osd(&self, input: QuickViewSetOsdInput) -> Result<(), String> {
+        let host = input.ip.trim();
+        let http_port = input.http_port.unwrap_or(80);
+        let channel_id = input.channel_id.unwrap_or(1);
+        let username = input.username.trim();
+        let password = input.password.unwrap_or_default();
+        let new_osd = input.new_osd.trim();
+
+        self.log_store.log("INFO", "QuickViewer", &format!("Alterando OSD para '{}' no canal {} do host {}", new_osd, channel_id, host));
+
+        let isapi_client = IsapiClient::new(host, http_port, username, &password);
+        match isapi_client.set_osd_title(channel_id, new_osd).await {
+            Ok(_) => {
+                self.log_store.log("INFO", "Audit", &format!("Operação CHANGE_OSD realizada com sucesso no host {}", host));
+                Ok(())
+            }
+            Err(e) => {
+                self.log_store.log("ERROR", "Audit", &format!("Falha na operação CHANGE_OSD no host {}: {}", host, e));
+                Err(e)
+            }
+        }
     }
 }

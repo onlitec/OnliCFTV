@@ -24,6 +24,7 @@ anyhow = "1.0"
 thiserror = "2.0"
 axum = { version = "0.8", features = ["tokio"] }
 tower-http = { version = "0.6", features = ["cors"] }
+md-5 = "0.10"
 
 [build-dependencies]
 tauri-build = "2"

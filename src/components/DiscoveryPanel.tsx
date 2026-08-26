@@ -33,6 +33,7 @@ import type {
   CreateCameraInput,
 } from '@/types';
 import { api } from '@/services/api';
+import { QuickViewerModal } from '@/components/QuickViewerModal';
 
 interface DiscoveryPanelProps {
   discoveredDevices: DiscoveredDevice[];
@@ -58,6 +59,9 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [expandedEvidencesIp, setExpandedEvidencesIp] = useState<string | null>(null);
 
+  // Quick Viewer Modal state
+  const [quickViewDevice, setQuickViewDevice] = useState<DiscoveredDevice | null>(null);
+
   // Batch modal state
   const [isBatchOpen, setIsBatchOpen] = useState(false);
   const [batchUsername, setBatchUsername] = useState('admin');
@@ -79,13 +83,13 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
   }, []);
 
   const currentIfaceInfo = useMemo(() => {
-    return interfaces.find((i) => i.id === selectedInterface) || interfaces[0];
+    return (interfaces || []).find((i) => i.id === selectedInterface) || (interfaces || [])[0];
   }, [interfaces, selectedInterface]);
 
   // Filter Counts
   const counts = useMemo(() => {
     const map: Record<string, number> = {
-      all: discoveredDevices.length,
+      all: (discoveredDevices || []).length,
       ip_camera: 0,
       intercom: 0,
       nvr: 0,
@@ -98,7 +102,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
       with_issues: 0,
       other: 0,
     };
-    for (const d of discoveredDevices) {
+    for (const d of (discoveredDevices || [])) {
       if (map[d.device_type] !== undefined) {
         map[d.device_type]++;
       } else {
@@ -113,7 +117,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
 
   // Filtered devices list
   const filteredDevices = useMemo(() => {
-    return discoveredDevices.filter((d) => {
+    return (discoveredDevices || []).filter((d) => {
       let matchesType = true;
       if (activeFilter === 'with_issues') {
         matchesType = d.issues && d.issues.length > 0;
@@ -175,7 +179,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
     setBatchError(null);
 
     try {
-      const selectedDevices = discoveredDevices.filter((d) => selectedIps.has(d.ip));
+      const selectedDevices = (discoveredDevices || []).filter((d) => selectedIps.has(d.ip));
       const input: BatchCreateCamerasInput = {
         devices: selectedDevices.map((d) => ({
           name: d.name,
@@ -261,14 +265,14 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-white tracking-tight">
-                Descoberta & Fingerprint Inteligente de Dispositivos
+                Descoberta & Quick Viewer de Dispositivos
               </h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
-                {discoveredDevices.length} encontrados
+                {(discoveredDevices || []).length} encontrados
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
-              Classificação por evidências combinadas (SADP, ONVIF, Portas de Servidor/Switch, Banners HTTP)
+              Visualização ao vivo com 1 clique, alteração de Device Name e OSD diretamente na rede
             </p>
           </div>
         </div>
@@ -353,19 +357,16 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
             {/* Protocol Badges */}
             <div className="flex items-center gap-1.5">
               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                ✓ ARP
+                ✓ SADP:37020
               </span>
               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                ✓ SADP:37020
+                ✓ ISAPI / Digest
               </span>
               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
                 ✓ ONVIF:3702
               </span>
               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                ✓ Portas CFTV/TI
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                ✓ Banners HTTP
+                ✓ RTSP:554
               </span>
             </div>
           </div>
@@ -560,7 +561,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
 
           {/* Professional Table Area */}
           <div className="max-h-72 overflow-y-auto">
-            {isScanning && discoveredDevices.length === 0 ? (
+            {isScanning && (discoveredDevices || []).length === 0 ? (
               <div className="py-12 text-center space-y-2">
                 <Loader2 className="h-7 w-7 text-sky-400 animate-spin mx-auto" />
                 <p className="text-xs text-slate-200 font-semibold">Executando Descoberta Multicamada Inteligente...</p>
@@ -592,7 +593,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                     <th className="px-3.5 py-2.5">Portas & Protocolos</th>
                     <th className="px-3.5 py-2.5">Ativação / Confiança</th>
                     <th className="px-3.5 py-2.5">Diagnóstico & Evidências</th>
-                    <th className="px-3.5 py-2.5 text-right">Ação</th>
+                    <th className="px-3.5 py-2.5 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/50">
@@ -601,6 +602,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                     const isAdded = dev.is_already_added;
                     const hasIssues = dev.issues && dev.issues.length > 0;
                     const isEvidencesOpen = expandedEvidencesIp === dev.ip;
+                    const hasVideo = ['ip_camera', 'nvr', 'dvr', 'intercom', 'ptz', 'traffic_lpr', 'thermal'].includes(dev.device_type);
 
                     return (
                       <React.Fragment key={dev.ip}>
@@ -746,31 +748,45 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                             </div>
                           </td>
 
-                          {/* Quick Action */}
+                          {/* Actions: Quick View & Add */}
                           <td className="px-3.5 py-2.5 text-right font-sans">
-                            {!isAdded ? (
-                              <button
-                                onClick={() => {
-                                  onAddSingle({
-                                    name: dev.name,
-                                    host: dev.ip,
-                                    username: 'admin',
-                                    rtsp_port: dev.rtsp_port || 554,
-                                    stream_profile: 'main',
-                                  });
-                                }}
-                                className="px-2.5 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold inline-flex items-center gap-1 transition shadow"
-                                title="Adicionar com 1 clique"
-                              >
-                                <Plus className="h-3 w-3" />
-                                <span>Adicionar</span>
-                              </button>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold">
-                                <CheckCircle2 className="h-3 w-3" />
-                                Cadastrada
-                              </span>
-                            )}
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Quick View Button for Video Devices */}
+                              {hasVideo && (
+                                <button
+                                  onClick={() => setQuickViewDevice(dev)}
+                                  className="px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/35 text-sky-300 border border-sky-500/40 text-xs font-bold inline-flex items-center gap-1 transition shadow"
+                                  title="Visualizar imagem ao vivo e configurar OSD/Device Name"
+                                >
+                                  <Eye className="h-3.5 w-3.5 text-sky-400" />
+                                  <span>Visualizar</span>
+                                </button>
+                              )}
+
+                              {!isAdded ? (
+                                <button
+                                  onClick={() => {
+                                    onAddSingle({
+                                      name: dev.name,
+                                      host: dev.ip,
+                                      username: 'admin',
+                                      rtsp_port: dev.rtsp_port || 554,
+                                      stream_profile: 'main',
+                                    });
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold inline-flex items-center gap-1 transition shadow"
+                                  title="Cadastrar na dashboard"
+                                >
+                                  <Plus className="h-3 w-3" />
+                                  <span>Adicionar</span>
+                                </button>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold px-1">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Cadastrada
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
 
@@ -837,6 +853,18 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
           </div>
         </>
       )}
+
+      {/* Quick Viewer Modal */}
+      <QuickViewerModal
+        device={quickViewDevice}
+        isOpen={quickViewDevice !== null}
+        onClose={() => setQuickViewDevice(null)}
+        onDeviceUpdated={() => onRefreshScan(selectedInterface || undefined)}
+        onAddAsCamera={(prefill) => {
+          setQuickViewDevice(null);
+          onAddSingle(prefill);
+        }}
+      />
 
       {/* Nested Batch Password Modal */}
       {isBatchOpen && (

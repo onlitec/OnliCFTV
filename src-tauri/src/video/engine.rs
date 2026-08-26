@@ -56,6 +56,10 @@ impl VideoEngineManager {
         }
     }
 
+    pub fn server_port(&self) -> u16 {
+        self.server_port
+    }
+
     pub async fn connect(&self, camera_id: &str, rtsp_url: &str) -> Result<(), String> {
         self.stop(camera_id).await.ok();
 

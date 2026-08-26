@@ -314,3 +314,32 @@ fn test_camera_172_20_120_44_without_sadp_onvif() {
     assert_eq!(res.brand, "Hikvision");
     assert!(res.confidence_score >= 80);
 }
+
+#[test]
+fn test_isapi_xml_parsing_device_info() {
+    let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+    <DeviceInfo xmlns="http://www.hikvision.com/ver20/XMLSchema" version="2.0">
+      <deviceName>PORTARIA-PRINCIPAL</deviceName>
+      <deviceID>88</deviceID>
+      <model>DS-KB8112-IM</model>
+      <serialNumber>DS-KB8112-IM20180905AAWR12345678</serialNumber>
+      <macAddress>c0:56:e3:11:22:33</macAddress>
+      <firmwareVersion>V1.4.71build 170714</firmwareVersion>
+      <deviceType>IPDoorStation</deviceType>
+    </DeviceInfo>"#;
+
+    assert_eq!(onliview::discovery::providers::sadp::extract_xml_tag(xml, "deviceName"), Some("PORTARIA-PRINCIPAL".to_string()));
+    assert_eq!(onliview::discovery::providers::sadp::extract_xml_tag(xml, "model"), Some("DS-KB8112-IM".to_string()));
+    assert_eq!(onliview::discovery::providers::sadp::extract_xml_tag(xml, "firmwareVersion"), Some("V1.4.71build 170714".to_string()));
+    assert_eq!(onliview::discovery::providers::sadp::extract_xml_tag(xml, "deviceType"), Some("IPDoorStation".to_string()));
+}
+
+#[test]
+fn test_isapi_xml_parsing_osd_title() {
+    let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
+    <channelTitleOverlay xmlns="http://www.hikvision.com/ver20/XMLSchema" version="2.0">
+      <channelName>PORTAO DE ENTRADA</channelName>
+    </channelTitleOverlay>"#;
+
+    assert_eq!(onliview::discovery::providers::sadp::extract_xml_tag(xml, "channelName"), Some("PORTAO DE ENTRADA".to_string()));
+}

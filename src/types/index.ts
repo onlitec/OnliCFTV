@@ -150,3 +150,60 @@ export interface AppConfig {
   auto_reconnect_interval_secs: number;
   default_grid_layout: number;
 }
+
+export type UserPermission = 'admin' | 'operator' | 'view_only' | 'unknown';
+
+export interface DeviceCapabilities {
+  can_view: boolean;
+  can_change_device_name: boolean;
+  can_change_osd: boolean;
+  can_ptz: boolean;
+  can_audio: boolean;
+  can_snapshot: boolean;
+  can_recording: boolean;
+  user_permission: UserPermission;
+  protocol_used: string;
+  auth_type: string;
+}
+
+export interface QuickViewConnectInput {
+  ip: string;
+  rtsp_port?: number;
+  http_port?: number;
+  username: string;
+  password?: string;
+}
+
+export interface QuickViewSetDeviceNameInput {
+  ip: string;
+  http_port?: number;
+  username: string;
+  password?: string;
+  new_name: string;
+}
+
+export interface QuickViewSetOsdInput {
+  ip: string;
+  http_port?: number;
+  channel_id?: number;
+  username: string;
+  password?: string;
+  new_osd: string;
+}
+
+export interface QuickViewSessionInfo {
+  ip: string;
+  rtsp_port: number;
+  http_port: number;
+  brand: string;
+  hardware_model: string;
+  serial_number?: string;
+  firmware_version?: string;
+  mac_address?: string;
+  device_name: string;
+  osd_text: string;
+  stream_url: string;
+  local_mjpeg_url: string;
+  capabilities: DeviceCapabilities;
+  metrics: CameraConnectionTestResult;
+}
