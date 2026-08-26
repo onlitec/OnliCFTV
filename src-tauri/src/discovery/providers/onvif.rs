@@ -54,7 +54,7 @@ impl OnvifProvider {
             }
         }
 
-        let mut buf = [0u8; 65535];
+        let mut buf = vec![0u8; 8192];
         let deadline = tokio::time::Instant::now() + timeout;
 
         while tokio::time::Instant::now() < deadline {
