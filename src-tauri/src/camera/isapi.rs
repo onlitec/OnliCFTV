@@ -277,7 +277,7 @@ impl IsapiClient {
     }
 
     pub async fn get_osd_title(&self, channel_id: u32) -> Result<String, String> {
-        // Try 1: Streaming Channel 101 or 100 + channel_id (Standard Hikvision IP Camera)
+        // Try 1: Streaming Channel 101 or 100 + channel_id
         let ch_id = if channel_id <= 1 { 101 } else { channel_id * 100 + 1 };
         let uri_stream = format!("/ISAPI/Streaming/channels/{}", ch_id);
         if let Ok((200, body)) = self.http_request("GET", &uri_stream, None).await {
@@ -312,41 +312,75 @@ impl IsapiClient {
     }
 
     pub async fn set_osd_title(&self, channel_id: u32, new_title: &str) -> Result<(), String> {
-        let ch_id = if channel_id <= 1 { 101 } else { channel_id * 100 + 1 };
+        let mut any_success = false;
 
-        // Try 1: Streaming channelName (Universal on modern Hikvision cameras)
-        let stream_xml = format!(
-            r#"<?xml version="1.0" encoding="UTF-8"?><StreamingChannel version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema"><id>{}</id><channelName>{}</channelName><enabled>true</enabled></StreamingChannel>"#,
-            ch_id, new_title
-        );
-        let uri_stream = format!("/ISAPI/Streaming/channels/{}", ch_id);
-        if let Ok((code, body)) = self.http_request("PUT", &uri_stream, Some(&stream_xml)).await {
-            if code == 200 || body.contains("<statusValue>1</statusValue>") || body.contains("OK") {
-                return Ok(());
+        // Method 1: Modify VideoOverlay XML
+        let uri_ov = format!("/ISAPI/System/Video/inputs/channels/{}/overlays", channel_id);
+        if let Ok((200, current_ov)) = self.http_request("GET", &uri_ov, None).await {
+            let mut updated_ov = current_ov.clone();
+            
+            if let Some(start_name) = updated_ov.find("<name>") {
+                if let Some(end_name) = updated_ov[start_name..].find("</name>") {
+                    let before = &updated_ov[..start_name + 6];
+                    let after = &updated_ov[start_name + end_name..];
+                    updated_ov = format!("{}{}{}", before, new_title, after);
+                }
+            } else if let Some(idx_self_close) = updated_ov.find("<name/>") {
+                updated_ov.replace_range(idx_self_close..idx_self_close + 7, &format!("<name>{}</name>", new_title));
+            } else if let Some(idx_self_close2) = updated_ov.find("<name />") {
+                updated_ov.replace_range(idx_self_close2..idx_self_close2 + 8, &format!("<name>{}</name>", new_title));
+            } else if let Some(idx_end_ov) = updated_ov.find("</VideoOverlay>") {
+                let channel_ov = format!(
+                    "<channelNameOverlay><enabled>true</enabled><positionX>512</positionX><positionY>64</positionY><name>{}</name></channelNameOverlay>",
+                    new_title
+                );
+                updated_ov.insert_str(idx_end_ov, &channel_ov);
+            }
+
+            if let Ok((code, body)) = self.http_request("PUT", &uri_ov, Some(&updated_ov)).await {
+                if code == 200 || body.contains("<statusValue>1</statusValue>") || body.contains("<statusValue>200</statusValue>") || body.contains("OK") {
+                    any_success = true;
+                }
             }
         }
 
-        // Try 2: Video inputs title
+        // Method 2: Modify StreamingChannel XML
+        let ch_id = if channel_id <= 1 { 101 } else { channel_id * 100 + 1 };
+        let uri_stream = format!("/ISAPI/Streaming/channels/{}", ch_id);
+        if let Ok((200, current_st)) = self.http_request("GET", &uri_stream, None).await {
+            let mut updated_st = current_st.clone();
+            if let Some(start_tag) = updated_st.find("<channelName>") {
+                if let Some(end_tag) = updated_st[start_tag..].find("</channelName>") {
+                    let before = &updated_st[..start_tag + 13];
+                    let after = &updated_st[start_tag + end_tag..];
+                    updated_st = format!("{}{}{}", before, new_title, after);
+                }
+            }
+
+            if let Ok((code_st, body_st)) = self.http_request("PUT", &uri_stream, Some(&updated_st)).await {
+                if code_st == 200 || body_st.contains("<statusValue>1</statusValue>") || body_st.contains("<statusValue>200</statusValue>") || body_st.contains("OK") {
+                    any_success = true;
+                }
+            }
+        }
+
+        // Method 3: Legacy Video inputs title
         let xml_title = format!(
             r#"<?xml version="1.0" encoding="UTF-8"?><channelTitleOverlay xmlns="http://www.hikvision.com/ver20/XMLSchema" version="2.0"><channelName>{}</channelName></channelTitleOverlay>"#,
             new_title
         );
-        let uri = format!("/ISAPI/System/Video/inputs/channels/{}/title", channel_id);
-        if let Ok((code, body)) = self.http_request("PUT", &uri, Some(&xml_title)).await {
-            if code == 200 || body.contains("<statusValue>200</statusValue>") || body.contains("OK") {
-                return Ok(());
+        let uri_t = format!("/ISAPI/System/Video/inputs/channels/{}/title", channel_id);
+        if let Ok((code_t, body_t)) = self.http_request("PUT", &uri_t, Some(&xml_title)).await {
+            if code_t == 200 || body_t.contains("<statusValue>200</statusValue>") || body_t.contains("OK") {
+                any_success = true;
             }
         }
 
-        // Try 3: Video overlays channelTitle
-        let uri_ov = format!("/ISAPI/System/Video/inputs/channels/{}/overlays/channelTitle", channel_id);
-        if let Ok((code2, body2)) = self.http_request("PUT", &uri_ov, Some(&xml_title)).await {
-            if code2 == 200 || body2.contains("<statusValue>200</statusValue>") || body2.contains("OK") {
-                return Ok(());
-            }
+        if any_success {
+            Ok(())
+        } else {
+            Err("Falha ao gravar OSD no dispositivo (Nenhum endpoint de overlay respondeu com sucesso)".to_string())
         }
-
-        Err("Falha ao gravar OSD no dispositivo (Nenhum endpoint de overlay respondeu com sucesso)".to_string())
     }
 
     pub async fn discover_streaming_channel_url(&self) -> String {
