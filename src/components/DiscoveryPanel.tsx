@@ -23,6 +23,7 @@ import {
   Network,
   ShieldCheck,
   Copy,
+  Info,
 } from 'lucide-react';
 import type {
   DiscoveredDevice,
@@ -55,6 +56,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
   const [selectedIps, setSelectedIps] = useState<Set<string>>(new Set());
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [expandedEvidencesIp, setExpandedEvidencesIp] = useState<string | null>(null);
 
   // Batch modal state
   const [isBatchOpen, setIsBatchOpen] = useState(false);
@@ -87,6 +89,9 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
       ip_camera: 0,
       intercom: 0,
       nvr: 0,
+      server: 0,
+      switch: 0,
+      router: 0,
       traffic_lpr: 0,
       ptz: 0,
       thermal: 0,
@@ -206,10 +211,12 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
         return <Compass className="h-3.5 w-3.5 text-cyan-400" />;
       case 'thermal':
         return <Thermometer className="h-3.5 w-3.5 text-rose-400" />;
+      case 'server':
+        return <Server className="h-3.5 w-3.5 text-orange-400" />;
       case 'switch':
+        return <Network className="h-3.5 w-3.5 text-indigo-400" />;
       case 'router':
-      case 'access_point':
-        return <Network className="h-3.5 w-3.5 text-emerald-400" />;
+        return <Network className="h-3.5 w-3.5 text-cyan-400" />;
       case 'ip_camera':
         return <Camera className="h-3.5 w-3.5 text-emerald-400" />;
       default:
@@ -230,10 +237,16 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
         return 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
       case 'thermal':
         return 'bg-rose-500/15 text-rose-300 border-rose-500/30';
+      case 'server':
+        return 'bg-orange-500/15 text-orange-300 border-orange-500/30';
+      case 'switch':
+        return 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30';
+      case 'router':
+        return 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
       case 'ip_camera':
         return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
       default:
-        return 'bg-slate-800 text-slate-300 border-slate-700';
+        return 'bg-slate-800 text-slate-400 border-slate-700';
     }
   };
 
@@ -248,14 +261,14 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-bold text-white tracking-tight">
-                Descoberta Inteligente de Dispositivos na Rede
+                Descoberta & Fingerprint Inteligente de Dispositivos
               </h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30">
                 {discoveredDevices.length} encontrados
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
-              Varredura multicamada: ARP, ONVIF WS-Discovery, Hikvision SADP, Sonda de Portas CFTV e Fingerprint
+              Classificação por evidências combinadas (SADP, ONVIF, Portas de Servidor/Switch, Banners HTTP)
             </p>
           </div>
         </div>
@@ -285,7 +298,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="IP, MAC, modelo..."
+              placeholder="IP, MAC, modelo, tipo..."
               className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 font-sans"
             />
           </div>
@@ -349,10 +362,10 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                 ✓ ONVIF:3702
               </span>
               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                ✓ RTSP:554
+                ✓ Portas CFTV/TI
               </span>
               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                ✓ HTTP:80
+                ✓ Banners HTTP
               </span>
             </div>
           </div>
@@ -425,6 +438,57 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
               </button>
             )}
 
+            {counts.server > 0 && (
+              <button
+                onClick={() => setActiveFilter('server')}
+                className={`px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 shrink-0 ${
+                  activeFilter === 'server'
+                    ? 'bg-orange-600 text-white font-bold shadow'
+                    : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800/80'
+                }`}
+              >
+                <Server className="h-3.5 w-3.5 text-orange-400" />
+                <span>Servidores</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/40 font-mono">
+                  {counts.server}
+                </span>
+              </button>
+            )}
+
+            {counts.switch > 0 && (
+              <button
+                onClick={() => setActiveFilter('switch')}
+                className={`px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 shrink-0 ${
+                  activeFilter === 'switch'
+                    ? 'bg-indigo-600 text-white font-bold shadow'
+                    : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800/80'
+                }`}
+              >
+                <Network className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Switches</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/40 font-mono">
+                  {counts.switch}
+                </span>
+              </button>
+            )}
+
+            {counts.router > 0 && (
+              <button
+                onClick={() => setActiveFilter('router')}
+                className={`px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 shrink-0 ${
+                  activeFilter === 'router'
+                    ? 'bg-cyan-600 text-white font-bold shadow'
+                    : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800/80'
+                }`}
+              >
+                <Network className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Roteadores</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/40 font-mono">
+                  {counts.router}
+                </span>
+              </button>
+            )}
+
             {counts.traffic_lpr > 0 && (
               <button
                 onClick={() => setActiveFilter('traffic_lpr')}
@@ -455,6 +519,23 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                 <span>PTZ / Speed Dome</span>
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/40 font-mono">
                   {counts.ptz}
+                </span>
+              </button>
+            )}
+
+            {counts.other > 0 && (
+              <button
+                onClick={() => setActiveFilter('other')}
+                className={`px-3 py-1 rounded-lg font-medium transition flex items-center gap-1.5 shrink-0 ${
+                  activeFilter === 'other'
+                    ? 'bg-slate-700 text-white font-bold shadow'
+                    : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800/80'
+                }`}
+              >
+                <Boxes className="h-3.5 w-3.5 text-slate-400" />
+                <span>Não Identificados</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/40 font-mono">
+                  {counts.other}
                 </span>
               </button>
             )}
@@ -510,7 +591,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                     <th className="px-3.5 py-2.5">IP & MAC</th>
                     <th className="px-3.5 py-2.5">Portas & Protocolos</th>
                     <th className="px-3.5 py-2.5">Ativação / Confiança</th>
-                    <th className="px-3.5 py-2.5">Diagnóstico / Alertas</th>
+                    <th className="px-3.5 py-2.5">Diagnóstico & Evidências</th>
                     <th className="px-3.5 py-2.5 text-right">Ação</th>
                   </tr>
                 </thead>
@@ -519,160 +600,212 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                     const isSelected = selectedIps.has(dev.ip);
                     const isAdded = dev.is_already_added;
                     const hasIssues = dev.issues && dev.issues.length > 0;
+                    const isEvidencesOpen = expandedEvidencesIp === dev.ip;
 
                     return (
-                      <tr
-                        key={dev.ip}
-                        className={`hover:bg-slate-800/40 transition ${
-                          isSelected ? 'bg-sky-500/5' : ''
-                        }`}
-                      >
-                        {/* Checkbox */}
-                        <td className="px-3.5 py-2.5">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            disabled={isAdded}
-                            onChange={() => toggleSelect(dev.ip)}
-                            className="rounded border-slate-700 bg-slate-900 text-sky-500 focus:ring-sky-500 h-3.5 w-3.5 cursor-pointer disabled:opacity-30"
-                          />
-                        </td>
+                      <React.Fragment key={dev.ip}>
+                        <tr
+                          className={`hover:bg-slate-800/40 transition ${
+                            isSelected ? 'bg-sky-500/5' : ''
+                          }`}
+                        >
+                          {/* Checkbox */}
+                          <td className="px-3.5 py-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              disabled={isAdded}
+                              onChange={() => toggleSelect(dev.ip)}
+                              className="rounded border-slate-700 bg-slate-900 text-sky-500 focus:ring-sky-500 h-3.5 w-3.5 cursor-pointer disabled:opacity-30"
+                            />
+                          </td>
 
-                        {/* Status & Type */}
-                        <td className="px-3.5 py-2.5">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${getTypeBadgeClass(
-                                dev.device_type
-                              )}`}
-                            >
-                              {getTypeIcon(dev.device_type)}
-                              <span>{dev.device_type_label}</span>
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Brand & Model */}
-                        <td className="px-3.5 py-2.5 font-sans">
-                          <div className="font-bold text-white leading-tight">{dev.hardware_model}</div>
-                          <div className="text-[11px] text-sky-400 font-mono mt-0.5 flex items-center gap-1.5">
-                            <span>{dev.brand}</span>
-                            {dev.serial_number && (
-                              <span className="text-slate-400 text-[10px]">
-                                • SN: {dev.serial_number.slice(-8)}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* IP & MAC */}
-                        <td className="px-3.5 py-2.5">
-                          <div className="flex items-center gap-1 text-slate-200 font-bold">
-                            <span>{dev.ip}</span>
-                            <button
-                              onClick={() => handleCopy(dev.ip)}
-                              className="text-slate-500 hover:text-slate-300 p-0.5"
-                              title={copiedText === dev.ip ? 'Copiado!' : 'Copiar IP'}
-                            >
-                              {copiedText === dev.ip ? (
-                                <Check className="h-3 w-3 text-emerald-400" />
-                              ) : (
-                                <Copy className="h-3 w-3" />
-                              )}
-                            </button>
-                          </div>
-                          {dev.mac ? (
-                            <div className="text-[10px] text-slate-400 mt-0.5">{dev.mac}</div>
-                          ) : (
-                            <div className="text-[10px] text-slate-600 italic">MAC indisponível</div>
-                          )}
-                        </td>
-
-                        {/* Ports & Protocols */}
-                        <td className="px-3.5 py-2.5">
-                          <div className="flex flex-wrap gap-1">
-                            {dev.protocols.map((p) => (
+                          {/* Status & Type */}
+                          <td className="px-3.5 py-2.5">
+                            <div className="flex items-center gap-1.5">
                               <span
-                                key={p}
-                                className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-800 text-slate-300 border border-slate-700"
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${getTypeBadgeClass(
+                                  dev.device_type
+                                )}`}
                               >
-                                {p}
+                                {getTypeIcon(dev.device_type)}
+                                <span>{dev.device_type_label}</span>
                               </span>
-                            ))}
-                            {dev.rtsp_port === 554 && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                                RTSP:554
-                              </span>
+                            </div>
+                          </td>
+
+                          {/* Brand & Model */}
+                          <td className="px-3.5 py-2.5 font-sans">
+                            <div className="font-bold text-white leading-tight">{dev.hardware_model}</div>
+                            <div className="text-[11px] text-sky-400 font-mono mt-0.5 flex items-center gap-1.5">
+                              <span>{dev.brand}</span>
+                              {dev.serial_number && (
+                                <span className="text-slate-400 text-[10px]">
+                                  • SN: {dev.serial_number.slice(-8)}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* IP & MAC */}
+                          <td className="px-3.5 py-2.5">
+                            <div className="flex items-center gap-1 text-slate-200 font-bold">
+                              <span>{dev.ip}</span>
+                              <button
+                                onClick={() => handleCopy(dev.ip)}
+                                className="text-slate-500 hover:text-slate-300 p-0.5"
+                                title={copiedText === dev.ip ? 'Copiado!' : 'Copiar IP'}
+                              >
+                                {copiedText === dev.ip ? (
+                                  <Check className="h-3 w-3 text-emerald-400" />
+                                ) : (
+                                  <Copy className="h-3 w-3" />
+                                )}
+                              </button>
+                            </div>
+                            {dev.mac ? (
+                              <div className="text-[10px] text-slate-400 mt-0.5">{dev.mac}</div>
+                            ) : (
+                              <div className="text-[10px] text-slate-600 italic">MAC indisponível</div>
                             )}
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Activation & Confidence */}
-                        <td className="px-3.5 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-[10px] font-bold ${
-                                dev.activation_status === 'Aguardando ativação'
-                                  ? 'text-rose-400'
-                                  : 'text-emerald-400'
-                              }`}
-                            >
-                              {dev.activation_status || 'Ativo'}
-                            </span>
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30">
-                              {dev.confidence_score}%
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Diagnostics / Issues */}
-                        <td className="px-3.5 py-2.5">
-                          {hasIssues ? (
-                            <div className="space-y-0.5">
-                              {dev.issues.map((issue, idx) => (
-                                <div
-                                  key={idx}
-                                  className="text-[10px] text-amber-300 flex items-center gap-1 leading-tight"
+                          {/* Ports & Protocols */}
+                          <td className="px-3.5 py-2.5">
+                            <div className="flex flex-wrap gap-1">
+                              {dev.protocols.map((p) => (
+                                <span
+                                  key={p}
+                                  className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-800 text-slate-300 border border-slate-700"
                                 >
-                                  <span>{issue}</span>
-                                </div>
+                                  {p}
+                                </span>
                               ))}
                             </div>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
-                              <ShieldCheck className="h-3 w-3" />
-                              Pronto para uso
-                            </span>
-                          )}
-                        </td>
+                          </td>
 
-                        {/* Quick Action */}
-                        <td className="px-3.5 py-2.5 text-right font-sans">
-                          {!isAdded ? (
-                            <button
-                              onClick={() => {
-                                onAddSingle({
-                                  name: dev.name,
-                                  host: dev.ip,
-                                  username: 'admin',
-                                  rtsp_port: dev.rtsp_port || 554,
-                                  stream_profile: 'main',
-                                });
-                              }}
-                              className="px-2.5 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold inline-flex items-center gap-1 transition shadow"
-                              title="Adicionar com 1 clique"
-                            >
-                              <Plus className="h-3 w-3" />
-                              <span>Adicionar</span>
-                            </button>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold">
-                              <CheckCircle2 className="h-3 w-3" />
-                              Cadastrada
-                            </span>
-                          )}
-                        </td>
-                      </tr>
+                          {/* Activation & Confidence */}
+                          <td className="px-3.5 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`text-[10px] font-bold ${
+                                  dev.activation_status === 'Aguardando ativação'
+                                    ? 'text-rose-400'
+                                    : 'text-emerald-400'
+                                }`}
+                              >
+                                {dev.activation_status || 'Ativo'}
+                              </span>
+                              <span
+                                className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border ${
+                                  dev.confidence_score >= 90
+                                    ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                    : dev.confidence_score >= 70
+                                    ? 'bg-sky-500/15 text-sky-300 border-sky-500/30'
+                                    : dev.confidence_score >= 40
+                                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                                }`}
+                                title={dev.confidence_level}
+                              >
+                                {dev.confidence_score}%
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Diagnostics & Evidences Button */}
+                          <td className="px-3.5 py-2.5">
+                            <div className="flex items-center justify-between gap-1">
+                              {hasIssues ? (
+                                <div className="space-y-0.5">
+                                  {dev.issues.map((issue, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="text-[10px] text-amber-300 flex items-center gap-1 leading-tight"
+                                    >
+                                      <span>{issue}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
+                                  <ShieldCheck className="h-3 w-3" />
+                                  Sem anomalias
+                                </span>
+                              )}
+
+                              {dev.evidences && dev.evidences.length > 0 && (
+                                <button
+                                  onClick={() => setExpandedEvidencesIp(isEvidencesOpen ? null : dev.ip)}
+                                  className="p-1 rounded text-slate-400 hover:text-sky-300 hover:bg-slate-800 shrink-0"
+                                  title="Ver evidências da classificação"
+                                >
+                                  <Info className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Quick Action */}
+                          <td className="px-3.5 py-2.5 text-right font-sans">
+                            {!isAdded ? (
+                              <button
+                                onClick={() => {
+                                  onAddSingle({
+                                    name: dev.name,
+                                    host: dev.ip,
+                                    username: 'admin',
+                                    rtsp_port: dev.rtsp_port || 554,
+                                    stream_profile: 'main',
+                                  });
+                                }}
+                                className="px-2.5 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold inline-flex items-center gap-1 transition shadow"
+                                title="Adicionar com 1 clique"
+                              >
+                                <Plus className="h-3 w-3" />
+                                <span>Adicionar</span>
+                              </button>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Cadastrada
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+
+                        {/* Expandable Evidences Row */}
+                        {isEvidencesOpen && (
+                          <tr className="bg-slate-950/80 border-b border-slate-800/80">
+                            <td colSpan={8} className="px-6 py-3">
+                              <div className="space-y-2">
+                                <div className="text-[11px] font-bold text-sky-400 flex items-center gap-1.5">
+                                  <Info className="h-3.5 w-3.5" />
+                                  <span>Evidências Coletadas para Classificação:</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {dev.evidences?.map((ev, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
+                                    >
+                                      {ev}
+                                    </span>
+                                  ))}
+                                  {dev.contradictions?.map((contra, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/10 text-rose-300 border border-rose-500/30"
+                                    >
+                                      {contra}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

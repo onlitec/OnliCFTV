@@ -9,7 +9,7 @@ use crate::discovery::providers::tcp::TcpPortProvider;
 use crate::discovery::providers::http::HttpFingerprintProvider;
 use crate::discovery::deduplicator::Deduplicator;
 use crate::discovery::diagnostic::DiagnosticEngine;
-use crate::discovery::classifier::infer_device_type;
+use crate::discovery::classifier::{classify_device, ClassificationContext};
 
 pub struct DiscoveryEngine;
 
@@ -37,6 +37,7 @@ impl DiscoveryEngine {
 
         let mut deduplicator = Deduplicator::new();
         let broadcast_targets = vec![selected_iface.broadcast.clone(), "255.255.255.255".to_string()];
+        let default_gw_ip = selected_iface.gateway.clone().unwrap_or_default();
 
         // Phase 1: ARP Inspection (10%)
         progress_callback(DiscoveryProgress {
@@ -50,7 +51,7 @@ impl DiscoveryEngine {
 
         let arp_table = ArpProvider::get_arp_table();
 
-        // Phase 2: SADP + ONVIF UDP Broadcasts (40%)
+        // Phase 2: SADP + ONVIF UDP Broadcasts (30%)
         progress_callback(DiscoveryProgress {
             percentage: 30,
             phase: "Enviando sondas ONVIF WS-Discovery e Hikvision SADP...".to_string(),
@@ -72,14 +73,14 @@ impl DiscoveryEngine {
             deduplicator.insert_or_merge(dev);
         }
 
-        // Phase 3: Active Subnet Sweep on selected interface prefix (75%)
+        // Phase 3: Active Subnet Sweep on selected interface prefix (65%)
         let subnet_prefix = selected_iface.ip.rsplit_once('.').map(|(p, _)| p).unwrap_or("172.20.120");
 
         progress_callback(DiscoveryProgress {
-            percentage: 60,
-            phase: format!("Varrendo sub-rede {}/24 em portas RTSP e HTTP...", selected_iface.ip),
+            percentage: 65,
+            phase: format!("Varrendo portas de CFTV, Servidores e Switches na rede {}...", subnet_prefix),
             devices_found: 0,
-            active_protocols: vec!["TCP".to_string(), "RTSP".to_string(), "HTTP".to_string()],
+            active_protocols: vec!["TCP".to_string(), "RTSP".to_string(), "HTTP".to_string(), "SSH".to_string(), "SNMP".to_string()],
             completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string()],
             is_running: true,
         });
@@ -88,119 +89,124 @@ impl DiscoveryEngine {
         for i in 1..=254 {
             let ip_str = format!("{}.{}", subnet_prefix, i);
             tcp_set.spawn(async move {
-                let open_ports = TcpPortProvider::check_cctv_ports(&ip_str).await;
+                let open_ports = TcpPortProvider::check_all_ports(&ip_str).await;
                 (ip_str, open_ports)
             });
         }
 
+        let mut active_hosts = Vec::new();
         while let Some(res) = tcp_set.join_next().await {
             if let Ok((ip_str, ports)) = res {
-                if ports.rtsp_554 || ports.hikvision_8000 || ports.dahua_37777 || ports.http_80 {
-                    let mut protocols = Vec::new();
-                    if ports.rtsp_554 { protocols.push("RTSP".to_string()); }
-                    if ports.hikvision_8000 { protocols.push("SDK:8000".to_string()); }
-                    if ports.dahua_37777 { protocols.push("SDK:37777".to_string()); }
-                    if ports.http_80 { protocols.push("HTTP".to_string()); }
+                let has_any_port = ports.rtsp_554 || ports.hikvision_8000 || ports.dahua_37777 
+                    || ports.http_80 || ports.https_443 || ports.http_8080 
+                    || ports.ssh_22 || ports.smb_445 || ports.postgres_5432 || ports.mysql_3306 || ports.docker_2375 
+                    || ports.snmp_161 || ports.telnet_23 || ports.dns_53;
 
-                    let mut brand = "Câmera IP".to_string();
-                    let mut model = "IP Camera".to_string();
-
-                    if ports.hikvision_8000 {
-                        brand = "Hikvision".to_string();
-                        model = "Hikvision IP Device".to_string();
-                    } else if ports.dahua_37777 {
-                        brand = "Dahua/Intelbras".to_string();
-                        model = "Câmera / Gravador IP".to_string();
-                    }
-
-                    // Check ARP for MAC
-                    let mac = arp_table.get(&ip_str).cloned();
-                    if let Some(ref m) = mac {
-                        if let Some(oui_vendor) = ArpProvider::lookup_oui_vendor(m) {
-                            brand = oui_vendor;
-                        }
-                    }
-
-                    let (device_type, device_type_label) = infer_device_type(&model, "", &ip_str);
-
-                    deduplicator.insert_or_merge(DiscoveredDevice {
-                        id: mac.clone().unwrap_or_else(|| ip_str.clone()),
-                        ip: ip_str.clone(),
-                        mac,
-                        brand,
-                        hardware_model: model,
-                        name: format!("Câmera ({})", ip_str),
-                        device_type,
-                        device_type_label,
-                        serial_number: None,
-                        firmware_version: None,
-                        activation_status: Some("Ativo".to_string()),
-                        rtsp_port: if ports.rtsp_554 { 554 } else { 0 },
-                        http_port: if ports.http_80 { 80 } else { 0 },
-                        sdk_port: if ports.hikvision_8000 { 8000 } else if ports.dahua_37777 { 37777 } else { 0 },
-                        protocols,
-                        confidence_score: 70,
-                        issues: Vec::new(),
-                        xaddrs: format!("http://{}:80/onvif/device_service", ip_str),
-                        is_already_added: false,
-                    });
+                if has_any_port {
+                    active_hosts.push((ip_str, ports));
                 }
             }
         }
 
-        // Phase 4: HTTP Fingerprinting on candidates with HTTP open (90%)
+        // Phase 4: HTTP Fingerprinting on hosts with web interfaces (85%)
         progress_callback(DiscoveryProgress {
             percentage: 85,
-            phase: "Analisando assinaturas HTTP e diagnóstico de portas...".to_string(),
-            devices_found: 0,
+            phase: "Coletando assinaturas HTTP, banners e títulos de serviços...".to_string(),
+            devices_found: active_hosts.len(),
             active_protocols: vec!["HTTP Fingerprint".to_string()],
             completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string(), "TCP".to_string()],
             is_running: true,
         });
 
-        // Consolidate list and run HTTP Fingerprint + Diagnostics
+        for (ip_str, ports) in active_hosts {
+            let http_fp = if ports.http_80 {
+                HttpFingerprintProvider::fingerprint(&ip_str, 80).await
+            } else if ports.http_8080 {
+                HttpFingerprintProvider::fingerprint(&ip_str, 8080).await
+            } else if ports.https_443 {
+                HttpFingerprintProvider::fingerprint(&ip_str, 443).await
+            } else {
+                None
+            };
+
+            let mac = arp_table.get(&ip_str).cloned();
+            let is_gw = !default_gw_ip.is_empty() && ip_str == default_gw_ip;
+
+            let mut protocols = Vec::new();
+            if ports.rtsp_554 { protocols.push("RTSP:554".to_string()); }
+            if ports.hikvision_8000 { protocols.push("SDK:8000".to_string()); }
+            if ports.dahua_37777 { protocols.push("SDK:37777".to_string()); }
+            if ports.http_80 { protocols.push("HTTP:80".to_string()); }
+            if ports.https_443 { protocols.push("HTTPS:443".to_string()); }
+            if ports.ssh_22 { protocols.push("SSH:22".to_string()); }
+            if ports.smb_445 { protocols.push("SMB:445".to_string()); }
+            if ports.postgres_5432 { protocols.push("Postgres:5432".to_string()); }
+            if ports.mysql_3306 { protocols.push("MySQL:3306".to_string()); }
+            if ports.docker_2375 { protocols.push("Docker:2375".to_string()); }
+            if ports.snmp_161 { protocols.push("SNMP:161".to_string()); }
+            if ports.dns_53 { protocols.push("DNS:53".to_string()); }
+
+            let ctx = ClassificationContext {
+                ip: &ip_str,
+                mac: mac.as_deref(),
+                hardware_model: "",
+                scopes: "",
+                name: "",
+                has_sadp: false,
+                sadp_model: None,
+                has_onvif: false,
+                open_ports: &ports,
+                http_fp: http_fp.as_ref(),
+                is_default_gateway: is_gw,
+            };
+
+            let res = classify_device(&ctx);
+
+            deduplicator.insert_or_merge(DiscoveredDevice {
+                id: mac.clone().unwrap_or_else(|| ip_str.clone()),
+                ip: ip_str.clone(),
+                mac,
+                brand: res.brand,
+                hardware_model: res.hardware_model,
+                name: res.name,
+                device_type: res.device_type,
+                device_type_label: res.device_type_label,
+                serial_number: None,
+                firmware_version: None,
+                activation_status: Some("Ativo".to_string()),
+                rtsp_port: if ports.rtsp_554 { 554 } else { 0 },
+                http_port: if ports.http_80 { 80 } else if ports.http_8080 { 8080 } else if ports.https_443 { 443 } else { 0 },
+                sdk_port: if ports.hikvision_8000 { 8000 } else if ports.dahua_37777 { 37777 } else { 0 },
+                protocols,
+                confidence_score: res.confidence_score,
+                confidence_level: res.confidence_level,
+                evidences: res.evidences,
+                contradictions: res.contradictions,
+                issues: Vec::new(),
+                xaddrs: if ports.http_80 { format!("http://{}:80/onvif/device_service", ip_str) } else { String::new() },
+                is_already_added: false,
+            });
+        }
+
+        // Phase 5: Consolidate & Diagnose (100%)
         let mut final_devices = deduplicator.into_vec();
 
         for dev in &mut final_devices {
-            // Fill MAC from ARP if missing
             if dev.mac.is_none() {
                 if let Some(mac) = arp_table.get(&dev.ip) {
                     dev.mac = Some(mac.clone());
-                    if dev.brand == "Câmera IP" || dev.brand == "ONVIF Camera" {
-                        if let Some(v) = ArpProvider::lookup_oui_vendor(mac) {
-                            dev.brand = v;
-                        }
-                    }
                 }
             }
 
-            // HTTP Fingerprint if model is generic
-            if (dev.hardware_model == "IP Camera" || dev.hardware_model == "Hikvision IP Device") && dev.http_port == 80 {
-                if let Some(fp) = HttpFingerprintProvider::fingerprint(&dev.ip, dev.http_port).await {
-                    if fp.is_hikvision {
-                        dev.brand = "Hikvision".to_string();
-                        if !dev.protocols.contains(&"HTTP".to_string()) {
-                            dev.protocols.push("HTTP".to_string());
-                        }
-                    } else if fp.is_dahua {
-                        dev.brand = "Dahua".to_string();
-                    } else if fp.is_intelbras {
-                        dev.brand = "Intelbras".to_string();
-                    }
-                }
-            }
-
-            // Run Diagnostic Engine
             DiagnosticEngine::diagnose_device(dev, &selected_iface.ip, &selected_iface.netmask);
         }
 
-        // Phase 5: Final completion (100%)
         progress_callback(DiscoveryProgress {
             percentage: 100,
-            phase: "Descoberta inteligente concluída!".to_string(),
+            phase: "Classificação por evidências concluída!".to_string(),
             devices_found: final_devices.len(),
             active_protocols: Vec::new(),
-            completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string(), "TCP".to_string(), "HTTP".to_string()],
+            completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string(), "TCP".to_string(), "HTTP Fingerprint".to_string()],
             is_running: false,
         });
 

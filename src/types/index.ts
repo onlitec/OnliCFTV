@@ -46,6 +46,9 @@ export interface DiscoveredDevice {
   sdk_port: number;
   protocols: string[];
   confidence_score: number;
+  confidence_level?: string;
+  evidences?: string[];
+  contradictions?: string[];
   issues: string[];
   xaddrs: string;
   is_already_added: boolean;

@@ -3,7 +3,8 @@ use std::time::Duration;
 use tokio::net::UdpSocket;
 use uuid::Uuid;
 use crate::discovery::types::DiscoveredDevice;
-use crate::discovery::classifier::infer_device_type;
+use crate::discovery::classifier::{classify_device, ClassificationContext};
+use crate::discovery::providers::tcp::OpenPorts;
 use crate::discovery::providers::sadp::extract_xml_tag;
 
 pub struct OnvifProvider;
@@ -96,17 +97,38 @@ pub fn parse_onvif_xml(xml: &str, fallback_ip: String) -> Option<DiscoveredDevic
         .unwrap_or_default();
 
     let (name, model, brand) = parse_onvif_scopes(&scopes, &ip);
-    let (device_type, device_type_label) = infer_device_type(&model, &scopes, &name);
+    
+    let open_ports = OpenPorts {
+        rtsp_554: true,
+        http_80: true,
+        ..Default::default()
+    };
+
+    let ctx = ClassificationContext {
+        ip: &ip,
+        mac: None,
+        hardware_model: &model,
+        scopes: &scopes,
+        name: &name,
+        has_sadp: false,
+        sadp_model: None,
+        has_onvif: true,
+        open_ports: &open_ports,
+        http_fp: None,
+        is_default_gateway: false,
+    };
+
+    let res = classify_device(&ctx);
 
     Some(DiscoveredDevice {
         id: ip.clone(),
         ip,
         mac: None,
-        brand,
+        brand: if res.brand != "Dispositivo de Rede" { res.brand } else { brand },
         hardware_model: model,
         name,
-        device_type,
-        device_type_label,
+        device_type: res.device_type,
+        device_type_label: res.device_type_label,
         serial_number: None,
         firmware_version: None,
         activation_status: Some("Ativo".to_string()),
@@ -114,7 +136,10 @@ pub fn parse_onvif_xml(xml: &str, fallback_ip: String) -> Option<DiscoveredDevic
         http_port: 80,
         sdk_port: 8000,
         protocols: vec!["ONVIF".to_string()],
-        confidence_score: 90,
+        confidence_score: res.confidence_score,
+        confidence_level: res.confidence_level,
+        evidences: res.evidences,
+        contradictions: res.contradictions,
         issues: Vec::new(),
         xaddrs,
         is_already_added: false,
@@ -143,7 +168,7 @@ fn extract_ip_from_xaddrs(url: &str) -> Option<String> {
 fn parse_onvif_scopes(scopes: &str, fallback_ip: &str) -> (String, String, String) {
     let mut name = None;
     let mut model = None;
-    let mut brand = "ONVIF Camera".to_string();
+    let mut brand = "ONVIF Device".to_string();
 
     let scopes_lower = scopes.to_lowercase();
     if scopes_lower.contains("hikvision") {

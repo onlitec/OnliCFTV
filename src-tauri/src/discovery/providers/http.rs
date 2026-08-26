@@ -7,8 +7,11 @@ pub struct HttpFingerprint {
     pub is_hikvision: bool,
     pub is_dahua: bool,
     pub is_intelbras: bool,
-    pub title: Option<String>,
+    pub is_linux_server: bool,
+    pub is_switch: bool,
+    pub is_router: bool,
     pub server_header: Option<String>,
+    pub html_title: Option<String>,
 }
 
 pub struct HttpFingerprintProvider;
@@ -22,7 +25,7 @@ impl HttpFingerprintProvider {
         ).await.ok()?.ok()?;
 
         let request = format!(
-            "GET / HTTP/1.1\r\nHost: {}\r\nUser-Agent: OnliView-Discovery/1.0\r\nConnection: close\r\n\r\n",
+            "GET / HTTP/1.1\r\nHost: {}\r\nUser-Agent: OnliView-Discovery/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n",
             ip
         );
 
@@ -30,8 +33,8 @@ impl HttpFingerprintProvider {
             return None;
         }
 
-        let mut buf = [0u8; 4096];
-        let n = match tokio::time::timeout(Duration::from_millis(300), stream.read(&mut buf)).await {
+        let mut buf = [0u8; 8192];
+        let n = match tokio::time::timeout(Duration::from_millis(350), stream.read(&mut buf)).await {
             Ok(Ok(read_bytes)) if read_bytes > 0 => read_bytes,
             _ => return None,
         };
@@ -41,15 +44,43 @@ impl HttpFingerprintProvider {
 
         let mut fp = HttpFingerprint::default();
 
-        // 1. Check Server header
+        // 1. Extract Server header
         for line in response.lines() {
-            if line.to_lowercase().starts_with("server:") {
-                fp.server_header = Some(line[7..].trim().to_string());
+            let line_trim = line.trim();
+            if line_trim.to_lowercase().starts_with("server:") {
+                let s_val = line_trim[7..].trim().to_string();
+                let s_lower = s_val.to_lowercase();
+                if s_lower.contains("ubuntu") || s_lower.contains("debian") || s_lower.contains("centos") 
+                    || (s_lower.contains("nginx") && !s_lower.contains("hik")) 
+                    || (s_lower.contains("apache") && !s_lower.contains("hik")) {
+                    fp.is_linux_server = true;
+                } else if s_lower.contains("routeros") || s_lower.contains("openwrt") {
+                    fp.is_router = true;
+                }
+                fp.server_header = Some(s_val);
             }
         }
 
-        // 2. Check known brand fingerprints
-        if resp_lower.contains("/doc/index.html") || resp_lower.contains("hikvision") || resp_lower.contains("app-hik") {
+        // 2. Extract HTML <title> tag
+        if let Some(start_t) = resp_lower.find("<title>") {
+            if let Some(end_t) = resp_lower[start_t + 7..].find("</title>") {
+                let title_val = response[start_t + 7..start_t + 7 + end_t].trim().to_string();
+                let t_lower = title_val.to_lowercase();
+                
+                if t_lower.contains("ubuntu") || t_lower.contains("apache2") || t_lower.contains("debian") || t_lower.contains("portainer") {
+                    fp.is_linux_server = true;
+                } else if t_lower.contains("switch") || t_lower.contains("smart switch") || t_lower.contains("easy smart") {
+                    fp.is_switch = true;
+                } else if t_lower.contains("router") || t_lower.contains("openwrt") || t_lower.contains("mikrotik") || t_lower.contains("gateway") {
+                    fp.is_router = true;
+                }
+                
+                fp.html_title = Some(title_val);
+            }
+        }
+
+        // 3. Known CFTV Brands
+        if resp_lower.contains("/doc/index.html") || resp_lower.contains("hikvision") || resp_lower.contains("app-webserver") || resp_lower.contains("web version") {
             fp.is_hikvision = true;
         } else if resp_lower.contains("dahua") || resp_lower.contains("quick_config") || resp_lower.contains("web/index.html") {
             fp.is_dahua = true;

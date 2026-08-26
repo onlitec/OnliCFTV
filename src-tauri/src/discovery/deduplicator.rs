@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use crate::discovery::types::DiscoveredDevice;
-use crate::discovery::classifier::{infer_device_type, calculate_confidence};
 
 pub struct Deduplicator {
     devices_by_key: HashMap<String, DiscoveredDevice>,
@@ -72,32 +71,38 @@ impl Deduplicator {
                 }
 
                 // Merge Model / Brand if target has generic info
-                if (target.hardware_model == "IP Camera" || target.hardware_model == "Hikvision IP Device" || target.hardware_model.is_empty())
-                    && dev.hardware_model != "IP Camera" && !dev.hardware_model.is_empty() {
+                if (target.hardware_model == "IP Camera" || target.hardware_model == "Network Switch" || target.hardware_model == "Dispositivo de Rede" || target.hardware_model.is_empty())
+                    && !dev.hardware_model.is_empty() && dev.hardware_model != "IP Camera" && dev.hardware_model != "Dispositivo de Rede" {
                     target.hardware_model = dev.hardware_model.clone();
                     target.brand = dev.brand.clone();
                     target.name = dev.name.clone();
-                    let (dt, dtl) = infer_device_type(&target.hardware_model, &target.xaddrs, &target.name);
-                    target.device_type = dt;
-                    target.device_type_label = dtl;
+                    target.device_type = dev.device_type.clone();
+                    target.device_type_label = dev.device_type_label.clone();
                 }
 
                 if target.xaddrs.is_empty() && !dev.xaddrs.is_empty() {
                     target.xaddrs = dev.xaddrs.clone();
                 }
 
-                // Recalculate confidence
-                let has_sadp = target.protocols.contains(&"SADP".to_string());
-                let has_onvif = target.protocols.contains(&"ONVIF".to_string());
-                let has_rtsp = target.protocols.contains(&"RTSP".to_string());
-                let has_sdk = target.sdk_port == 8000 || target.sdk_port == 37777;
-                let has_model = target.hardware_model != "IP Camera" && !target.hardware_model.is_empty();
-                let has_oui = target.mac.is_some();
-                let has_http = target.protocols.contains(&"HTTP".to_string());
+                // Merge Evidences & Contradictions
+                for e in dev.evidences {
+                    if !target.evidences.contains(&e) {
+                        target.evidences.push(e);
+                    }
+                }
+                for c in dev.contradictions {
+                    if !target.contradictions.contains(&c) {
+                        target.contradictions.push(c);
+                    }
+                }
 
-                target.confidence_score = calculate_confidence(
-                    has_sadp, has_onvif, has_rtsp, has_sdk, has_model, has_oui, has_http
-                );
+                // Keep highest confidence
+                if dev.confidence_score > target.confidence_score {
+                    target.confidence_score = dev.confidence_score;
+                    target.confidence_level = dev.confidence_level;
+                    target.device_type = dev.device_type;
+                    target.device_type_label = dev.device_type_label;
+                }
             }
         } else {
             // Insert new
@@ -111,6 +116,11 @@ impl Deduplicator {
             }
             self.devices_by_key.insert(key, dev);
         }
+    }
+
+    pub fn get_mut(&mut self, ip: &str) -> Option<&mut DiscoveredDevice> {
+        let key = self.ip_to_key.get(ip)?.clone();
+        self.devices_by_key.get_mut(&key)
     }
 
     pub fn into_vec(self) -> Vec<DiscoveredDevice> {

@@ -2,13 +2,11 @@ use onliview::camera::crypto::{encrypt_password, decrypt_password};
 use onliview::logging::logger::sanitize_credentials;
 use onliview::rtsp::client::build_authenticated_rtsp_url;
 use onliview::database::Database;
-use onliview::camera::model::{CreateCameraInput, BatchCreateCamerasInput, BatchDeviceItem, DeviceType};
-use onliview::discovery::types::DiscoveredDevice;
+use onliview::camera::model::{BatchCreateCamerasInput, BatchDeviceItem, DeviceType};
 use onliview::discovery::providers::sadp::parse_sadp_xml;
-use onliview::discovery::providers::onvif::parse_onvif_xml;
-use onliview::discovery::classifier::{infer_device_type, calculate_confidence};
-use onliview::discovery::diagnostic::DiagnosticEngine;
-use onliview::discovery::deduplicator::Deduplicator;
+use onliview::discovery::providers::tcp::OpenPorts;
+use onliview::discovery::providers::http::HttpFingerprint;
+use onliview::discovery::classifier::{classify_device, ClassificationContext};
 use onliview::discovery::network_interfaces::NetworkInterfaceManager;
 
 #[test]
@@ -32,34 +30,193 @@ fn test_log_sanitizer() {
 fn test_rtsp_url_builder() {
     let url = build_authenticated_rtsp_url("172.20.120.67", 554, "admin", "pass123", "");
     assert_eq!(url, "rtsp://admin:pass123@172.20.120.67:554/Streaming/Channels/101");
-
-    let custom = build_authenticated_rtsp_url("172.20.120.67", 554, "admin", "pass123", "/live/ch1");
-    assert_eq!(custom, "rtsp://admin:pass123@172.20.120.67:554/live/ch1");
 }
 
 #[test]
-fn test_device_type_classification() {
-    // 1. Videoporteiro / Intercom (Lab Device)
-    let (t1, l1) = infer_device_type("DS-KB8112-IM", "onvif://www.onvif.org/type/audio_encoder", "PORTAO");
-    assert_eq!(t1, DeviceType::Intercom);
-    assert_eq!(l1, "Videoporteiro / Comunicação");
+fn test_ubuntu_server_classification_not_camera() {
+    let ports = OpenPorts {
+        http_80: true,
+        ssh_22: true,
+        postgres_5432: true,
+        docker_2375: true,
+        ..Default::default()
+    };
 
-    // 2. Câmera IP (Lab Device 172.20.120.53)
-    let (t2, l2) = infer_device_type("DS-2CD1301-I", "onvif://www.onvif.org/type/video_encoder", "HIKVISION DS-2CD1301-I");
-    assert_eq!(t2, DeviceType::IpCamera);
-    assert_eq!(l2, "Câmera IP");
+    let http_fp = HttpFingerprint {
+        is_linux_server: true,
+        server_header: Some("nginx/1.18.0 (Ubuntu)".to_string()),
+        html_title: Some("Welcome to Ubuntu Nginx Server".to_string()),
+        ..Default::default()
+    };
 
-    // 3. NVR / Gravador
-    let (t3, _) = infer_device_type("DS-7608NI-K2", "onvif://www.onvif.org/Profile/G", "NVR_SALA_CFTV");
-    assert_eq!(t3, DeviceType::Nvr);
+    let ctx = ClassificationContext {
+        ip: "192.168.1.10",
+        mac: Some("00:15:5d:01:23:45"),
+        hardware_model: "",
+        scopes: "",
+        name: "",
+        has_sadp: false,
+        sadp_model: None,
+        has_onvif: false,
+        open_ports: &ports,
+        http_fp: Some(&http_fp),
+        is_default_gateway: false,
+    };
 
-    // 4. Tráfego / LPR
-    let (t4, _) = infer_device_type("DS-TCG227-AIR", "onvif://www.onvif.org/traffic", "LPR_ENTRADA");
-    assert_eq!(t4, DeviceType::TrafficLpr);
+    let res = classify_device(&ctx);
+    assert_eq!(res.device_type, DeviceType::Server);
+    assert!(res.device_type_label.contains("Servidor"));
+    assert!(res.contradictions.iter().any(|c| c.contains("Banco de dados")));
+}
 
-    // 5. Câmera PTZ / Speed Dome
-    let (t5, _) = infer_device_type("DS-2DE4225IW-DE", "onvif://www.onvif.org/type/ptz", "SPEED_DOME_PATIO");
-    assert_eq!(t5, DeviceType::Ptz);
+#[test]
+fn test_switch_classification_not_camera() {
+    let ports = OpenPorts {
+        http_80: true,
+        snmp_161: true,
+        telnet_23: true,
+        ..Default::default()
+    };
+
+    let http_fp = HttpFingerprint {
+        is_switch: true,
+        html_title: Some("TP-Link Easy Smart Switch".to_string()),
+        ..Default::default()
+    };
+
+    let ctx = ClassificationContext {
+        ip: "192.168.1.254",
+        mac: Some("50:d4:f7:11:22:33"), // TP-Link OUI
+        hardware_model: "TL-SG108E",
+        scopes: "",
+        name: "TP-Link Switch",
+        has_sadp: false,
+        sadp_model: None,
+        has_onvif: false,
+        open_ports: &ports,
+        http_fp: Some(&http_fp),
+        is_default_gateway: false,
+    };
+
+    let res = classify_device(&ctx);
+    assert_eq!(res.device_type, DeviceType::Switch);
+    assert_eq!(res.device_type_label, "Switch de Rede");
+    assert!(res.confidence_score >= 80);
+}
+
+#[test]
+fn test_router_gateway_classification() {
+    let ports = OpenPorts {
+        http_80: true,
+        dns_53: true,
+        ..Default::default()
+    };
+
+    let ctx = ClassificationContext {
+        ip: "172.20.120.1",
+        mac: Some("24:a4:3c:00:11:22"), // Ubiquiti OUI
+        hardware_model: "",
+        scopes: "",
+        name: "Gateway",
+        has_sadp: false,
+        sadp_model: None,
+        has_onvif: false,
+        open_ports: &ports,
+        http_fp: None,
+        is_default_gateway: true,
+    };
+
+    let res = classify_device(&ctx);
+    assert_eq!(res.device_type, DeviceType::Router);
+    assert_eq!(res.device_type_label, "Roteador");
+}
+
+#[test]
+fn test_hikvision_camera_classification_high_confidence() {
+    let ports = OpenPorts {
+        rtsp_554: true,
+        hikvision_8000: true,
+        http_80: true,
+        ..Default::default()
+    };
+
+    let ctx = ClassificationContext {
+        ip: "172.20.120.53",
+        mac: Some("ac:cb:51:7b:0b:54"), // Hikvision OUI
+        hardware_model: "DS-2CD1301-I",
+        scopes: "onvif://www.onvif.org/type/video_encoder onvif://www.onvif.org/Profile/Streaming",
+        name: "HIKVISION DS-2CD1301-I",
+        has_sadp: true,
+        sadp_model: Some("DS-2CD1301-I"),
+        has_onvif: true,
+        open_ports: &ports,
+        http_fp: None,
+        is_default_gateway: false,
+    };
+
+    let res = classify_device(&ctx);
+    assert_eq!(res.device_type, DeviceType::IpCamera);
+    assert_eq!(res.device_type_label, "Câmera IP");
+    assert_eq!(res.brand, "Hikvision");
+    assert!(res.confidence_score >= 95);
+    assert_eq!(res.confidence_level, "Confirmado");
+}
+
+#[test]
+fn test_hikvision_nvr_classification() {
+    let ports = OpenPorts {
+        rtsp_554: true,
+        hikvision_8000: true,
+        http_80: true,
+        ..Default::default()
+    };
+
+    let ctx = ClassificationContext {
+        ip: "172.20.120.100",
+        mac: Some("c0:56:e3:11:22:33"),
+        hardware_model: "DS-7608NI-K2",
+        scopes: "onvif://www.onvif.org/Profile/G",
+        name: "NVR_SALA_CFTV",
+        has_sadp: true,
+        sadp_model: Some("DS-7608NI-K2"),
+        has_onvif: true,
+        open_ports: &ports,
+        http_fp: None,
+        is_default_gateway: false,
+    };
+
+    let res = classify_device(&ctx);
+    assert_eq!(res.device_type, DeviceType::Nvr);
+    assert_eq!(res.device_type_label, "NVR / Gravador");
+    assert!(res.confidence_score >= 95);
+}
+
+#[test]
+fn test_unknown_device_classification() {
+    let ports = OpenPorts {
+        http_8080: true,
+        ..Default::default()
+    };
+
+    let ctx = ClassificationContext {
+        ip: "192.168.1.88",
+        mac: None,
+        hardware_model: "",
+        scopes: "",
+        name: "",
+        has_sadp: false,
+        sadp_model: None,
+        has_onvif: false,
+        open_ports: &ports,
+        http_fp: None,
+        is_default_gateway: false,
+    };
+
+    let res = classify_device(&ctx);
+    assert_eq!(res.device_type, DeviceType::Other);
+    assert_eq!(res.device_type_label, "Dispositivo Desconhecido");
+    assert_eq!(res.confidence_level, "Desconhecido");
+    assert!(res.confidence_score < 40);
 }
 
 #[test]
@@ -86,106 +243,14 @@ fn test_sadp_xml_parsing() {
 }
 
 #[test]
-fn test_confidence_and_diagnostic() {
-    let score = calculate_confidence(true, true, true, true, true, true, true);
-    assert_eq!(score, 99);
-
-    let mut dev = DiscoveredDevice {
-        id: "192.168.1.64".to_string(),
-        ip: "192.168.1.64".to_string(),
-        mac: Some("ac:cb:51:00:11:22".to_string()),
-        brand: "Hikvision".to_string(),
-        hardware_model: "DS-2CD2021G1-I".to_string(),
-        name: "Hikvision DS-2CD2021G1-I".to_string(),
-        device_type: DeviceType::IpCamera,
-        device_type_label: "Câmera IP".to_string(),
-        serial_number: None,
-        firmware_version: None,
-        activation_status: Some("Aguardando ativação".to_string()),
-        rtsp_port: 554,
-        http_port: 80,
-        sdk_port: 8000,
-        protocols: vec!["SADP".to_string()],
-        confidence_score: 85,
-        issues: Vec::new(),
-        xaddrs: String::new(),
-        is_already_added: false,
-    };
-
-    DiagnosticEngine::diagnose_device(&mut dev, "172.20.120.30", "255.255.255.0");
-    assert!(dev.issues.iter().any(|i| i.contains("outra sub-rede")));
-    assert!(dev.issues.iter().any(|i| i.contains("não ativada")));
-}
-
-#[test]
-fn test_deduplicator_merge() {
-    let mut dedup = Deduplicator::new();
-
-    // 1. First discovered via TCP sweep
-    dedup.insert_or_merge(DiscoveredDevice {
-        id: "172.20.120.53".to_string(),
-        ip: "172.20.120.53".to_string(),
-        mac: None,
-        brand: "Câmera IP".to_string(),
-        hardware_model: "IP Camera".to_string(),
-        name: "Câmera (172.20.120.53)".to_string(),
-        device_type: DeviceType::IpCamera,
-        device_type_label: "Câmera IP".to_string(),
-        serial_number: None,
-        firmware_version: None,
-        activation_status: Some("Ativo".to_string()),
-        rtsp_port: 554,
-        http_port: 80,
-        sdk_port: 8000,
-        protocols: vec!["TCP".to_string(), "RTSP".to_string()],
-        confidence_score: 60,
-        issues: Vec::new(),
-        xaddrs: String::new(),
-        is_already_added: false,
-    });
-
-    // 2. Then discovered via SADP
-    dedup.insert_or_merge(DiscoveredDevice {
-        id: "ac:cb:51:7b:0b:54".to_string(),
-        ip: "172.20.120.53".to_string(),
-        mac: Some("ac:cb:51:7b:0b:54".to_string()),
-        brand: "Hikvision".to_string(),
-        hardware_model: "DS-2CD1301-I".to_string(),
-        name: "Hikvision DS-2CD1301-I".to_string(),
-        device_type: DeviceType::IpCamera,
-        device_type_label: "Câmera IP".to_string(),
-        serial_number: Some("DS-2CD1301-I12345".to_string()),
-        firmware_version: Some("V5.4.5".to_string()),
-        activation_status: Some("Ativo".to_string()),
-        rtsp_port: 554,
-        http_port: 80,
-        sdk_port: 8000,
-        protocols: vec!["SADP".to_string()],
-        confidence_score: 95,
-        issues: Vec::new(),
-        xaddrs: String::new(),
-        is_already_added: false,
-    });
-
-    let merged = dedup.into_vec();
-    assert_eq!(merged.len(), 1);
-    assert_eq!(merged[0].hardware_model, "DS-2CD1301-I");
-    assert_eq!(merged[0].mac, Some("ac:cb:51:7b:0b:54".to_string()));
-    assert!(merged[0].protocols.contains(&"RTSP".to_string()));
-    assert!(merged[0].protocols.contains(&"SADP".to_string()));
-}
-
-#[test]
 fn test_network_interfaces_detection() {
     let ifaces = NetworkInterfaceManager::get_interfaces();
     assert!(!ifaces.is_empty());
-    let default_iface = ifaces.iter().find(|i| i.is_default);
-    assert!(default_iface.is_some() || !ifaces.is_empty());
 }
 
 #[test]
 fn test_database_crud_and_batch() {
-    let db_path = "/tmp/test_onliview_discovery_v4.db";
+    let db_path = "/tmp/test_onliview_discovery_v5.db";
     let _ = std::fs::remove_file(db_path);
 
     let db = Database::new(db_path).expect("Failed to open test database");

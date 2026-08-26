@@ -2,7 +2,8 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::UdpSocket;
 use crate::discovery::types::DiscoveredDevice;
-use crate::discovery::classifier::infer_device_type;
+use crate::discovery::classifier::{classify_device, ClassificationContext};
+use crate::discovery::providers::tcp::OpenPorts;
 
 pub struct SadpProvider;
 
@@ -56,7 +57,29 @@ impl SadpProvider {
                 Ok(Ok((len, addr))) => {
                     let xml_str = String::from_utf8_lossy(&buf[..len]);
                     if let Some(record) = parse_sadp_xml(&xml_str, addr.ip().to_string()) {
-                        let (device_type, device_type_label) = infer_device_type(&record.model, "", &format!("Hikvision {}", record.model));
+                        let open_ports = OpenPorts {
+                            rtsp_554: true,
+                            hikvision_8000: record.sdk_port == 8000,
+                            http_80: record.http_port == 80,
+                            ..Default::default()
+                        };
+
+                        let ctx = ClassificationContext {
+                            ip: &record.ip,
+                            mac: record.mac.as_deref(),
+                            hardware_model: &record.model,
+                            scopes: "",
+                            name: &format!("Hikvision {}", record.model),
+                            has_sadp: true,
+                            sadp_model: Some(&record.model),
+                            has_onvif: false,
+                            open_ports: &open_ports,
+                            http_fp: None,
+                            is_default_gateway: false,
+                        };
+
+                        let res = classify_device(&ctx);
+
                         let act_status = match record.activated {
                             Some(true) => "Ativo".to_string(),
                             Some(false) => "Aguardando ativação".to_string(),
@@ -67,11 +90,11 @@ impl SadpProvider {
                             id: record.mac.clone().unwrap_or_else(|| record.ip.clone()),
                             ip: record.ip.clone(),
                             mac: record.mac,
-                            brand: "Hikvision".to_string(),
+                            brand: res.brand,
                             hardware_model: record.model.clone(),
                             name: format!("Hikvision {}", record.model),
-                            device_type,
-                            device_type_label,
+                            device_type: res.device_type,
+                            device_type_label: res.device_type_label,
                             serial_number: record.serial,
                             firmware_version: record.firmware,
                             activation_status: Some(act_status),
@@ -79,7 +102,10 @@ impl SadpProvider {
                             http_port: record.http_port,
                             sdk_port: record.sdk_port,
                             protocols: vec!["SADP".to_string()],
-                            confidence_score: 95,
+                            confidence_score: res.confidence_score,
+                            confidence_level: res.confidence_level,
+                            evidences: res.evidences,
+                            contradictions: res.contradictions,
                             issues: Vec::new(),
                             xaddrs: String::new(),
                             is_already_added: false,
