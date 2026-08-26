@@ -283,7 +283,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
               onChange={(e) => setSelectedInterface(e.target.value)}
               className="bg-transparent text-slate-200 text-xs font-semibold focus:outline-none cursor-pointer pr-1"
             >
-              {interfaces.map((iface) => (
+              {(interfaces || []).map((iface) => (
                 <option key={iface.id} value={iface.id} className="bg-slate-900 text-white">
                   {iface.name} - {iface.ip}/{iface.netmask}
                 </option>
@@ -673,7 +673,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                           {/* Ports & Protocols */}
                           <td className="px-3.5 py-2.5">
                             <div className="flex flex-wrap gap-1">
-                              {dev.protocols.map((p) => (
+                              {(dev.protocols || []).map((p) => (
                                 <span
                                   key={p}
                                   className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-800 text-slate-300 border border-slate-700"
@@ -718,7 +718,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                             <div className="flex items-center justify-between gap-1">
                               {hasIssues ? (
                                 <div className="space-y-0.5">
-                                  {dev.issues.map((issue, idx) => (
+                                  {(dev.issues || []).map((issue, idx) => (
                                     <div
                                       key={idx}
                                       className="text-[10px] text-amber-300 flex items-center gap-1 leading-tight"

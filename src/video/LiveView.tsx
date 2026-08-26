@@ -45,12 +45,12 @@ export const LiveView: React.FC<LiveViewProps> = ({
   const focusedCamera = cameras.find((c) => c.id === activeCamId);
   const focusedStatus = activeCamId ? streamStatuses[activeCamId] : null;
 
-  // Auto-connect focused camera if not online
+  // Auto-connect focused camera when activeCamId changes
   useEffect(() => {
-    if (activeCamId && !streamStatuses[activeCamId]) {
+    if (activeCamId) {
       onReconnect(activeCamId);
     }
-  }, [activeCamId, onReconnect, streamStatuses]);
+  }, [activeCamId]);
 
   return (
     <div className="h-full flex flex-col bg-slate-950 p-4 space-y-3 select-none">
