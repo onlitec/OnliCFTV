@@ -1,0 +1,41 @@
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Tauri & Rust
+src-tauri/target/
+src-tauri/Cargo.lock
+
+# Database & Runtime
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite3
+database/*.db
+
+# Logs & Temp
+logs/
+*.log
+temp/
+.cache/
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
