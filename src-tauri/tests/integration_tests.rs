@@ -3,7 +3,7 @@ use onliview::logging::logger::sanitize_credentials;
 use onliview::rtsp::client::build_authenticated_rtsp_url;
 use onliview::database::Database;
 use onliview::camera::model::{CreateCameraInput, BatchCreateCamerasInput, BatchDeviceItem, DeviceType};
-use onliview::onvif::discovery::{parse_probe_matches, infer_device_type};
+use onliview::onvif::discovery::{parse_probe_matches, parse_sadp_matches, infer_device_type};
 
 #[test]
 fn test_crypto_roundtrip() {
@@ -38,7 +38,7 @@ fn test_device_type_classification() {
     assert_eq!(t1, DeviceType::Intercom);
     assert_eq!(l1, "Videoporteiro / Comunicação");
 
-    // 2. Câmera IP (Lab Device)
+    // 2. Câmera IP (Lab Device 172.20.120.53)
     let (t2, l2) = infer_device_type("DS-2CD1301-I", "onvif://www.onvif.org/type/video_encoder", "HIKVISION DS-2CD1301-I");
     assert_eq!(t2, DeviceType::IpCamera);
     assert_eq!(l2, "Câmera IP");
@@ -48,7 +48,7 @@ fn test_device_type_classification() {
     assert_eq!(t3, DeviceType::Nvr);
 
     // 4. Tráfego / LPR
-    let (t4, _) = infer_device_type("DS-TCG227-AIR", "onvif://www.onvif.org/traffic", "LPR_PORTARIA");
+    let (t4, _) = infer_device_type("DS-TCG227-AIR", "onvif://www.onvif.org/traffic", "LPR_ENTRADA");
     assert_eq!(t4, DeviceType::TrafficLpr);
 
     // 5. Câmera PTZ / Speed Dome
@@ -57,30 +57,27 @@ fn test_device_type_classification() {
 }
 
 #[test]
-fn test_onvif_probe_parsing_with_classification() {
-    let sample_xml = r#"
-    <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:wsd="http://schemas.xmlsoap.org/ws/2005/04/discovery">
-      <soap:Body>
-        <wsd:ProbeMatches>
-          <wsd:ProbeMatch>
-            <wsd:Scopes>onvif://www.onvif.org/type/video_encoder onvif://www.onvif.org/hardware/DS-KB8112-IM onvif://www.onvif.org/name/PORTAO_ENTRADA</wsd:Scopes>
-            <wsd:XAddrs>http://172.20.120.67:80/onvif/device_service</wsd:XAddrs>
-          </wsd:ProbeMatch>
-        </wsd:ProbeMatches>
-      </soap:Body>
-    </soap:Envelope>
+fn test_sadp_probe_parsing() {
+    let sadp_xml = r#"
+    <ProbeMatch>
+      <DeviceDescription>DS-2CD1301-I</DeviceDescription>
+      <IPv4Address>172.20.120.53</IPv4Address>
+      <CommandPort>8000</CommandPort>
+      <HttpPort>80</HttpPort>
+      <MAC>ac-cb-51-7b-0b-54</MAC>
+    </ProbeMatch>
     "#;
 
-    let dev = parse_probe_matches(sample_xml, "172.20.120.67".to_string()).expect("Should parse ONVIF match");
-    assert_eq!(dev.ip, "172.20.120.67");
-    assert_eq!(dev.hardware_model, "DS-KB8112-IM");
-    assert_eq!(dev.name, "PORTAO_ENTRADA");
-    assert_eq!(dev.device_type, DeviceType::Intercom);
+    let dev = parse_sadp_matches(sadp_xml, "172.20.120.53".to_string()).expect("Should parse SADP match");
+    assert_eq!(dev.ip, "172.20.120.53");
+    assert_eq!(dev.hardware_model, "DS-2CD1301-I");
+    assert_eq!(dev.brand, "Hikvision");
+    assert_eq!(dev.device_type, DeviceType::IpCamera);
 }
 
 #[test]
 fn test_database_crud_and_batch() {
-    let db_path = "/tmp/test_onliview_crud_batch_v2.db";
+    let db_path = "/tmp/test_onliview_crud_batch_v3.db";
     let _ = std::fs::remove_file(db_path);
 
     let db = Database::new(db_path).expect("Failed to open test database");

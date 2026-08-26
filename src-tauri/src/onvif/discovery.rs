@@ -1,23 +1,23 @@
 use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
-use tokio::net::UdpSocket;
+use tokio::net::{UdpSocket, TcpStream};
+use tokio::task::JoinSet;
 use uuid::Uuid;
 use crate::camera::model::{DiscoveredDevice, DeviceType};
 
 pub struct OnvifDiscovery;
 
 impl OnvifDiscovery {
-    pub async fn discover_devices(timeout_duration: Duration) -> Result<Vec<DiscoveredDevice>, String> {
-        let socket = UdpSocket::bind("0.0.0.0:0")
-            .await
-            .map_err(|e| format!("Falha ao abrir socket UDP para descoberta ONVIF: {}", e))?;
+    pub async fn discover_devices(_timeout_duration: Duration) -> Result<Vec<DiscoveredDevice>, String> {
+        let mut discovered_map: HashMap<String, DiscoveredDevice> = HashMap::new();
 
-        socket.set_broadcast(true)
-            .map_err(|e| format!("Falha ao habilitar broadcast UDP: {}", e))?;
+        // 1. Detect local subnets (e.g. 172.20.120.x)
+        let local_subnets = get_local_ipv4_subnets();
 
+        // 2. Prepare ONVIF WS-Discovery probe
         let probe_id = Uuid::new_v4().to_string();
-        let probe_xml = format!(
+        let ws_probe_xml = format!(
             r#"<?xml version="1.0" encoding="UTF-8"?>
 <e:Envelope xmlns:e="http://www.w3.org/2003/05/soap-envelope"
             xmlns:w="http://schemas.xmlsoap.org/ws/2004/08/addressing"
@@ -37,44 +37,83 @@ impl OnvifDiscovery {
             probe_id
         );
 
-        let probe_bytes = probe_xml.as_bytes();
+        // 3. Prepare Hikvision SADP probe
+        let sadp_probe_xml = r#"<?xml version="1.0" encoding="utf-8"?><Probe><Types>inquiry</Types></Probe>"#;
 
-        // Send to ONVIF multicast and common subnet broadcast addresses
-        let targets = [
-            "239.255.255.250:3702",
-            "255.255.255.255:3702",
-            "172.20.120.255:3702",
-            "192.168.1.255:3702",
-            "192.168.0.255:3702",
-            "10.0.0.255:3702",
-        ];
+        // Open UDP socket for Multicast & Broadcast
+        if let Ok(socket) = UdpSocket::bind("0.0.0.0:0").await {
+            let _ = socket.set_broadcast(true);
 
-        for target in targets {
-            if let Ok(addr) = target.parse::<SocketAddr>() {
-                let _ = socket.send_to(probe_bytes, addr).await;
+            let mut onvif_targets = vec![
+                "239.255.255.250:3702".to_string(),
+                "255.255.255.255:3702".to_string(),
+            ];
+            let mut sadp_targets = vec![
+                "239.255.255.250:37020".to_string(),
+                "255.255.255.255:37020".to_string(),
+            ];
+
+            for (prefix, _) in &local_subnets {
+                onvif_targets.push(format!("{}.255:3702", prefix));
+                sadp_targets.push(format!("{}.255:37020", prefix));
+            }
+
+            for target in onvif_targets {
+                if let Ok(addr) = target.parse::<SocketAddr>() {
+                    let _ = socket.send_to(ws_probe_xml.as_bytes(), addr).await;
+                }
+            }
+
+            for target in sadp_targets {
+                if let Ok(addr) = target.parse::<SocketAddr>() {
+                    let _ = socket.send_to(sadp_probe_xml.as_bytes(), addr).await;
+                }
+            }
+
+            // Listen for UDP responses for up to 1.5s
+            let mut buf = [0u8; 65535];
+            let udp_deadline = tokio::time::Instant::now() + Duration::from_millis(1500);
+
+            while tokio::time::Instant::now() < udp_deadline {
+                let remaining = udp_deadline - tokio::time::Instant::now();
+                match tokio::time::timeout(remaining, socket.recv_from(&mut buf)).await {
+                    Ok(Ok((len, addr))) => {
+                        let xml_str = String::from_utf8_lossy(&buf[..len]);
+                        if let Some(device) = parse_probe_matches(&xml_str, addr.ip().to_string()) {
+                            discovered_map.insert(device.ip.clone(), device);
+                        } else if let Some(device) = parse_sadp_matches(&xml_str, addr.ip().to_string()) {
+                            discovered_map.entry(device.ip.clone())
+                                .and_modify(|existing| {
+                                    if existing.hardware_model == "IP Camera" && device.hardware_model != "IP Camera" {
+                                        existing.hardware_model = device.hardware_model.clone();
+                                        existing.name = device.name.clone();
+                                    }
+                                })
+                                .or_insert(device);
+                        }
+                    }
+                    _ => break,
+                }
             }
         }
 
-        let mut discovered_map: HashMap<String, DiscoveredDevice> = HashMap::new();
-        let mut buf = [0u8; 65535];
-        let start_time = tokio::time::Instant::now();
-
-        loop {
-            let elapsed = start_time.elapsed();
-            if elapsed >= timeout_duration {
-                break;
-            }
-            let remaining = timeout_duration - elapsed;
-
-            match tokio::time::timeout(remaining, socket.recv_from(&mut buf)).await {
-                Ok(Ok((len, addr))) => {
-                    let xml_str = String::from_utf8_lossy(&buf[..len]);
-                    if let Some(device) = parse_probe_matches(&xml_str, addr.ip().to_string()) {
-                        discovered_map.entry(device.ip.clone()).or_insert(device);
-                    }
+        // 4. Concurrent TCP Subnet Sweep on local /24 subnets for RTSP 554, Hikvision 8000, HTTP 80
+        for (prefix, _) in &local_subnets {
+            let mut join_set = JoinSet::new();
+            for i in 1..=254 {
+                let ip_str = format!("{}.{}", prefix, i);
+                if discovered_map.contains_key(&ip_str) {
+                    continue;
                 }
-                Ok(Err(_)) => break,
-                Err(_) => break, // Timeout
+                join_set.spawn(async move {
+                    probe_cctv_ip(&ip_str).await
+                });
+            }
+
+            while let Some(res) = join_set.join_next().await {
+                if let Ok(Some(device)) = res {
+                    discovered_map.entry(device.ip.clone()).or_insert(device);
+                }
             }
         }
 
@@ -82,6 +121,82 @@ impl OnvifDiscovery {
         list.sort_by(|a, b| a.ip.cmp(&b.ip));
         Ok(list)
     }
+}
+
+async fn probe_cctv_ip(ip: &str) -> Option<DiscoveredDevice> {
+    // Check RTSP port 554 first (fastest)
+    let rtsp_open = is_port_open(ip, 554).await;
+    let hik_open = is_port_open(ip, 8000).await;
+    let http_open = if !rtsp_open && !hik_open {
+        is_port_open(ip, 80).await
+    } else {
+        true
+    };
+
+    if !rtsp_open && !hik_open && !http_open {
+        return None;
+    }
+
+    // Determine brand and model if possible
+    let mut brand = "Câmera IP".to_string();
+    let mut model = "IP Camera".to_string();
+
+    if hik_open {
+        brand = "Hikvision".to_string();
+        model = "Hikvision IP Device".to_string();
+    }
+
+    let (device_type, device_type_label) = infer_device_type(&model, "", ip);
+
+    Some(DiscoveredDevice {
+        ip: ip.to_string(),
+        name: format!("{} ({})", brand, ip),
+        hardware_model: model,
+        brand,
+        device_type,
+        device_type_label,
+        xaddrs: format!("http://{}:80/onvif/device_service", ip),
+        rtsp_port: 554,
+        is_already_added: false,
+    })
+}
+
+async fn is_port_open(ip: &str, port: u16) -> bool {
+    let addr = format!("{}:{}", ip, port);
+    tokio::time::timeout(Duration::from_millis(250), TcpStream::connect(&addr))
+        .await
+        .map(|r| r.is_ok())
+        .unwrap_or(false)
+}
+
+fn get_local_ipv4_subnets() -> Vec<(String, Ipv4Addr)> {
+    let mut subnets = Vec::new();
+    if let Ok(output) = std::process::Command::new("ip").args(["-4", "addr"]).output() {
+        let text = String::from_utf8_lossy(&output.stdout);
+        for line in text.lines() {
+            let line = line.trim();
+            if line.starts_with("inet ") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let ip_cidr = parts[1];
+                    if let Some(pos) = ip_cidr.find('/') {
+                        let ip_str = &ip_cidr[..pos];
+                        if let Ok(ipv4) = ip_str.parse::<Ipv4Addr>() {
+                            if !ipv4.is_loopback() && !ipv4.is_link_local() {
+                                let octets = ipv4.octets();
+                                let prefix = format!("{}.{}.{}", octets[0], octets[1], octets[2]);
+                                subnets.push((prefix, ipv4));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if subnets.is_empty() {
+        subnets.push(("172.20.120".to_string(), Ipv4Addr::new(172, 20, 120, 1)));
+    }
+    subnets
 }
 
 pub fn parse_probe_matches(xml: &str, sender_ip: String) -> Option<DiscoveredDevice> {
@@ -95,14 +210,12 @@ pub fn parse_probe_matches(xml: &str, sender_ip: String) -> Option<DiscoveredDev
         .or_else(|| extract_tag_content(xml, "wsd:XAddrs"))
         .unwrap_or_default();
 
-    // Extract IP from XAddrs (e.g. "http://172.20.120.67:80/onvif/device_service") or fallback to sender_ip
     let ip = if let Some(extracted_ip) = extract_ip_from_url(&xaddrs) {
         extracted_ip
     } else {
         sender_ip
     };
 
-    // Extract Scopes
     let scopes = extract_tag_content(xml, "Scopes")
         .or_else(|| extract_tag_content(xml, "d:Scopes"))
         .or_else(|| extract_tag_content(xml, "wsd:Scopes"))
@@ -119,6 +232,33 @@ pub fn parse_probe_matches(xml: &str, sender_ip: String) -> Option<DiscoveredDev
         device_type,
         device_type_label,
         xaddrs,
+        rtsp_port: 554,
+        is_already_added: false,
+    })
+}
+
+pub fn parse_sadp_matches(xml: &str, sender_ip: String) -> Option<DiscoveredDevice> {
+    if !xml.contains("<ProbeMatch>") && !xml.contains("DeviceDescription") {
+        return None;
+    }
+
+    let ip = extract_tag_content(xml, "IPv4Address")
+        .unwrap_or(sender_ip);
+
+    let model = extract_tag_content(xml, "DeviceDescription")
+        .unwrap_or_else(|| "Hikvision Device".to_string());
+
+    let name = format!("Hikvision {}", model);
+    let (device_type, device_type_label) = infer_device_type(&model, "", &name);
+
+    Some(DiscoveredDevice {
+        ip,
+        name,
+        hardware_model: model,
+        brand: "Hikvision".to_string(),
+        device_type,
+        device_type_label,
+        xaddrs: "".to_string(),
         rtsp_port: 554,
         is_already_added: false,
     })
@@ -144,7 +284,8 @@ pub fn infer_device_type(hardware_model: &str, scopes: &str, name: &str) -> (Dev
         || m.starts_with("VTO") || m.starts_with("VTH") || m.starts_with("PVIP")
         || m.starts_with("ALLO") || m.contains("DOOR") || m.contains("INTERCOM")
         || s.contains("intercom") || s.contains("door") || s.contains("access_control")
-        || n.contains("INTERFONE") || n.contains("VIDEOPORTEIRO") || n.contains("CAMPANHIA") {
+        || n.contains("INTERFONE") || n.contains("VIDEOPORTEIRO") || n.contains("CAMPANHIA")
+        || n.contains("PORTAO") {
         return (DeviceType::Intercom, "Videoporteiro / Comunicação".to_string());
     }
 
