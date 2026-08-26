@@ -51,3 +51,30 @@ pub struct CameraConnectionTestResult {
     pub bitrate: Option<String>,
     pub latency_ms: Option<u64>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscoveredDevice {
+    pub ip: String,
+    pub name: String,
+    pub hardware_model: String,
+    pub brand: String,
+    pub xaddrs: String,
+    pub rtsp_port: u16,
+    pub is_already_added: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchDeviceItem {
+    pub name: String,
+    pub host: String,
+    pub rtsp_port: u16,
+    pub custom_rtsp_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchCreateCamerasInput {
+    pub devices: Vec<BatchDeviceItem>,
+    pub username: String,
+    pub password: Option<String>,
+    pub stream_profile: String, // "main" | "sub"
+}

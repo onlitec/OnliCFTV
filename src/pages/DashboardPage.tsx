@@ -7,12 +7,16 @@ import {
   Radio,
   ArrowRight,
   Play,
+  Search,
+  Sparkles,
 } from 'lucide-react';
-import type { Camera as CameraType, CameraStreamStatus } from '@/types';
+import type { Camera as CameraType, CameraStreamStatus, DiscoveredDevice } from '@/types';
 
 interface DashboardProps {
   cameras: CameraType[];
   streamStatuses: Record<string, CameraStreamStatus>;
+  discoveredDevices: DiscoveredDevice[];
+  onOpenDiscovery: () => void;
   onNavigateTo: (tab: any) => void;
   onStartStream: (id: string) => void;
 }
@@ -20,6 +24,8 @@ interface DashboardProps {
 export const DashboardPage: React.FC<DashboardProps> = ({
   cameras,
   streamStatuses,
+  discoveredDevices,
+  onOpenDiscovery,
   onNavigateTo,
   onStartStream,
 }) => {
@@ -30,8 +36,10 @@ export const DashboardPage: React.FC<DashboardProps> = ({
     (s) => s.state === 'online' || s.state === 'connecting'
   ).length;
 
+  const newDiscoveredCount = discoveredDevices.filter((d) => !d.is_already_added).length;
+
   return (
-    <div className="p-6 space-y-6 max-h-full overflow-y-auto">
+    <div className="p-6 space-y-6 max-h-full overflow-y-auto select-none">
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-sky-950/40 to-slate-900 border border-slate-800 rounded-xl p-6 shadow-lg">
         <div className="flex items-center justify-between">
@@ -46,16 +54,49 @@ export const DashboardPage: React.FC<DashboardProps> = ({
               Plataforma de gerenciamento de vídeo, decodificação em tempo real e monitoramento profissional de CFTV IP.
             </p>
           </div>
-          <button
-            onClick={() => onNavigateTo('live')}
-            className="px-5 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold shadow-lg shadow-sky-950 flex items-center gap-2 transition shrink-0"
-          >
-            <Radio className="h-4 w-4" />
-            <span>Abrir Visualização</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onOpenDiscovery}
+              className="px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 text-sm font-semibold border border-slate-700 flex items-center gap-2 transition shrink-0"
+            >
+              <Search className="h-4 w-4" />
+              <span>Buscar Câmeras</span>
+            </button>
+            <button
+              onClick={() => onNavigateTo('live')}
+              className="px-5 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold shadow-lg shadow-sky-950 flex items-center gap-2 transition shrink-0"
+            >
+              <Radio className="h-4 w-4" />
+              <span>Abrir Visualização</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Discovery Alert Bar */}
+      {newDiscoveredCount > 0 && (
+        <div className="bg-sky-950/40 border border-sky-500/30 rounded-xl p-4 flex items-center justify-between shadow">
+          <div className="flex items-center gap-3">
+            <Sparkles className="h-5 w-5 text-sky-400 animate-pulse shrink-0" />
+            <div>
+              <h4 className="text-sm font-bold text-white">
+                {newDiscoveredCount} novo(s) dispositivo(s) encontrado(s) na rede local
+              </h4>
+              <p className="text-xs text-slate-300">
+                Dispositivos prontos para adição individual ou cadastro em lote com senha única.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenDiscovery}
+            className="px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+          >
+            <span>Adicionar Agora</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -114,7 +155,7 @@ export const DashboardPage: React.FC<DashboardProps> = ({
 
         {cameras.length === 0 ? (
           <div className="py-8 text-center text-slate-500 text-xs">
-            Nenhuma câmera configurada. Clique em "Câmeras" para adicionar seu primeiro dispositivo.
+            Nenhuma câmera configurada. Clique em "Buscar Câmeras" para encontrar dispositivos na rede.
           </div>
         ) : (
           <div className="divide-y divide-slate-800/80">

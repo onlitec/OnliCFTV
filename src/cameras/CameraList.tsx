@@ -8,13 +8,17 @@ import {
   Activity,
   Radio,
   Loader2,
+  Search,
+  Sparkles,
 } from 'lucide-react';
-import type { Camera, CameraStreamStatus } from '@/types';
+import type { Camera, CameraStreamStatus, DiscoveredDevice } from '@/types';
 import { api } from '@/services/api';
 
 interface CameraListProps {
   cameras: Camera[];
   streamStatuses: Record<string, CameraStreamStatus>;
+  discoveredDevices: DiscoveredDevice[];
+  onOpenDiscovery: () => void;
   onAddCamera: () => void;
   onEditCamera: (cam: Camera) => void;
   onDeleteCamera: (id: string) => void;
@@ -26,6 +30,8 @@ interface CameraListProps {
 export const CameraList: React.FC<CameraListProps> = ({
   cameras,
   streamStatuses,
+  discoveredDevices,
+  onOpenDiscovery,
   onAddCamera,
   onEditCamera,
   onDeleteCamera,
@@ -35,6 +41,8 @@ export const CameraList: React.FC<CameraListProps> = ({
 }) => {
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ id: string; success: boolean; msg: string } | null>(null);
+
+  const newDiscoveredCount = discoveredDevices.filter((d) => !d.is_already_added).length;
 
   const handleTestExisting = async (id: string) => {
     setTestingId(id);
@@ -60,8 +68,34 @@ export const CameraList: React.FC<CameraListProps> = ({
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header and Add Button */}
+    <div className="p-6 space-y-6 select-none">
+      {/* Smart Discovery Notification Banner */}
+      {newDiscoveredCount > 0 && (
+        <div className="bg-gradient-to-r from-sky-950/70 via-slate-900 to-sky-950/70 border border-sky-500/40 rounded-xl p-4 flex items-center justify-between shadow-lg shadow-sky-950/30 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-sky-500/20 border border-sky-500/30 flex items-center justify-center text-sky-400">
+              <Sparkles className="h-5 w-5 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                {newDiscoveredCount} novo(s) dispositivo(s) localizado(s) na rede local!
+              </h4>
+              <p className="text-xs text-slate-300">
+                Adicione individualmente ou todos de uma vez selecionando e informando a senha em lote.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenDiscovery}
+            className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md shadow-sky-950 flex items-center gap-1.5 transition shrink-0"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span>Ver Dispositivos ({newDiscoveredCount})</span>
+          </button>
+        </div>
+      )}
+
+      {/* Header and Action Buttons */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-bold text-white tracking-tight">Gerenciamento de Câmeras</h3>
@@ -69,13 +103,20 @@ export const CameraList: React.FC<CameraListProps> = ({
             Cadastre, teste e gerencie suas câmeras IP, NVRs e canais Hikvision via RTSP.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={onOpenDiscovery}
+            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 text-sm font-semibold border border-slate-700 flex items-center gap-2 transition"
+          >
+            <Search className="h-4 w-4" />
+            <span>Buscar na Rede</span>
+          </button>
           <button
             onClick={onViewLive}
-            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 flex items-center gap-2 transition"
+            className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 flex items-center gap-2 transition"
           >
             <Radio className="h-4 w-4 text-sky-400" />
-            <span>Abrir Mosaico Ao Vivo</span>
+            <span>Mosaico Ao Vivo</span>
           </button>
           <button
             onClick={onAddCamera}
@@ -95,15 +136,24 @@ export const CameraList: React.FC<CameraListProps> = ({
           </div>
           <h4 className="text-base font-bold text-white mb-1">Nenhuma câmera cadastrada</h4>
           <p className="text-xs text-slate-400 max-w-sm mx-auto mb-4">
-            Adicione uma câmera informando o IP, porta RTSP (554) e credenciais para iniciar o monitoramento.
+            Utilize a busca automática de rede para localizar dispositivos na sua rede ou cadastre manualmente.
           </p>
-          <button
-            onClick={onAddCamera}
-            className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold inline-flex items-center gap-2 transition shadow"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Cadastrar Primeira Câmera</span>
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={onOpenDiscovery}
+              className="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold inline-flex items-center gap-2 transition shadow"
+            >
+              <Search className="h-4 w-4" />
+              <span>Buscar Câmeras na Rede</span>
+            </button>
+            <button
+              onClick={onAddCamera}
+              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold inline-flex items-center gap-2 transition border border-slate-700"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Cadastro Manual</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

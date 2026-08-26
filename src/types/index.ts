@@ -36,6 +36,30 @@ export interface UpdateCameraInput {
   enabled?: boolean;
 }
 
+export interface DiscoveredDevice {
+  ip: string;
+  name: string;
+  hardware_model: string;
+  brand: string;
+  xaddrs: string;
+  rtsp_port: number;
+  is_already_added: boolean;
+}
+
+export interface BatchDeviceItem {
+  name: string;
+  host: string;
+  rtsp_port: number;
+  custom_rtsp_url?: string;
+}
+
+export interface BatchCreateCamerasInput {
+  devices: BatchDeviceItem[];
+  username: string;
+  password?: string;
+  stream_profile: string;
+}
+
 export interface CameraConnectionTestResult {
   success: boolean;
   message: string;

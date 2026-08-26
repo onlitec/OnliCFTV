@@ -4,7 +4,7 @@ use uuid::Uuid;
 use std::sync::{Arc, Mutex};
 use std::path::Path;
 
-use crate::camera::model::{Camera, CreateCameraInput, UpdateCameraInput};
+use crate::camera::model::{Camera, CreateCameraInput, UpdateCameraInput, BatchCreateCamerasInput};
 use crate::camera::crypto::{encrypt_password, decrypt_password};
 use crate::database::schema::CREATE_TABLES_SQL;
 
@@ -146,6 +146,67 @@ impl Database {
             created_at: now.clone(),
             updated_at: now,
         })
+    }
+
+    pub fn create_cameras_batch(&self, input: BatchCreateCamerasInput) -> Result<Vec<Camera>, String> {
+        let now = Utc::now().to_rfc3339();
+        let plain_pass = input.password.unwrap_or_default();
+        let password_encrypted = encrypt_password(&plain_pass)?;
+        let stream_profile = if input.stream_profile.is_empty() { "main".to_string() } else { input.stream_profile };
+
+        let mut lock = self.conn.lock().unwrap();
+        let tx = lock.transaction().map_err(|e| e.to_string())?;
+
+        let mut created_cameras = Vec::new();
+
+        for item in input.devices {
+            let id = Uuid::new_v4().to_string();
+            let rtsp_port = if item.rtsp_port == 0 { 554 } else { item.rtsp_port };
+            let rtsp_url = if let Some(url) = item.custom_rtsp_url {
+                if url.trim().is_empty() {
+                    format_default_rtsp_url(&item.host, rtsp_port, &stream_profile)
+                } else {
+                    url
+                }
+            } else {
+                format_default_rtsp_url(&item.host, rtsp_port, &stream_profile)
+            };
+
+            tx.execute(
+                "INSERT INTO cameras (id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                params![
+                    id,
+                    item.name,
+                    item.host,
+                    input.username,
+                    password_encrypted,
+                    rtsp_port,
+                    rtsp_url,
+                    stream_profile,
+                    1,
+                    now,
+                    now
+                ],
+            ).map_err(|e| e.to_string())?;
+
+            created_cameras.push(Camera {
+                id,
+                name: item.name,
+                host: item.host,
+                username: input.username.clone(),
+                password_encrypted: password_encrypted.clone(),
+                rtsp_port,
+                rtsp_url,
+                stream_profile: stream_profile.clone(),
+                enabled: true,
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            });
+        }
+
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(created_cameras)
     }
 
     pub fn update_camera(&self, input: UpdateCameraInput) -> Result<Camera, String> {

@@ -3,6 +3,8 @@ import type {
   Camera,
   CreateCameraInput,
   UpdateCameraInput,
+  DiscoveredDevice,
+  BatchCreateCamerasInput,
   CameraConnectionTestResult,
   CameraStreamStatus,
   LogEntry,
@@ -20,6 +22,14 @@ export const api = {
 
   async createCamera(input: CreateCameraInput): Promise<Camera> {
     return await invoke('create_camera', { input });
+  },
+
+  async createCamerasBatch(input: BatchCreateCamerasInput): Promise<Camera[]> {
+    return await invoke('create_cameras_batch', { input });
+  },
+
+  async discoverDevices(): Promise<DiscoveredDevice[]> {
+    return await invoke('discover_devices');
   },
 
   async updateCamera(input: UpdateCameraInput): Promise<Camera> {

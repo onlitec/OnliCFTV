@@ -1,9 +1,11 @@
+use std::time::Duration;
 use crate::database::Database;
 use crate::camera::model::*;
 use crate::rtsp::client::build_authenticated_rtsp_url;
 use crate::rtsp::probe::probe_rtsp_stream;
 use crate::video::engine::VideoEngineManager;
 use crate::logging::logger::LogStore;
+use crate::onvif::discovery::OnvifDiscovery;
 
 #[derive(Clone)]
 pub struct CameraManager {
@@ -33,6 +35,31 @@ impl CameraManager {
         let cam = self.db.create_camera(input)?;
         self.log_store.log("INFO", "CameraManager", &format!("Câmera cadastrada: {} ({})", cam.name, cam.host));
         Ok(cam)
+    }
+
+    pub fn create_cameras_batch(&self, input: BatchCreateCamerasInput) -> Result<Vec<Camera>, String> {
+        let count = input.devices.len();
+        let cams = self.db.create_cameras_batch(input)?;
+        self.log_store.log("INFO", "CameraManager", &format!("Adicionadas {} câmeras em lote com sucesso", count));
+        Ok(cams)
+    }
+
+    pub async fn discover_devices(&self) -> Result<Vec<DiscoveredDevice>, String> {
+        self.log_store.log("INFO", "Discovery", "Iniciando varredura de rede local por dispositivos ONVIF/CFTV");
+        
+        let mut devices = OnvifDiscovery::discover_devices(Duration::from_millis(2500)).await?;
+        
+        let existing_cameras = self.db.get_cameras().unwrap_or_default();
+        let existing_hosts: std::collections::HashSet<String> = existing_cameras.into_iter().map(|c| c.host).collect();
+
+        for dev in &mut devices {
+            if existing_hosts.contains(&dev.ip) {
+                dev.is_already_added = true;
+            }
+        }
+
+        self.log_store.log("INFO", "Discovery", &format!("Varredura concluída: {} dispositivos localizados", devices.len()));
+        Ok(devices)
     }
 
     pub fn update_camera(&self, input: UpdateCameraInput) -> Result<Camera, String> {

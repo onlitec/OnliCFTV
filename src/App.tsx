@@ -4,21 +4,28 @@ import type { NavTab } from '@/components/Sidebar';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { CameraList } from '@/cameras/CameraList';
 import { CameraModal } from '@/cameras/CameraModal';
+import { DiscoveryModal } from '@/cameras/DiscoveryModal';
 import { LiveView } from '@/video/LiveView';
 import { DiagnosticsPage } from '@/diagnostics/DiagnosticsPage';
 import { SettingsPage } from '@/settings/SettingsPage';
 import { RecordingsPage } from '@/pages/RecordingsPage';
 import { EventsPage } from '@/pages/EventsPage';
 
-import type { Camera, CameraStreamStatus, AppConfig } from '@/types';
+import type { Camera, CameraStreamStatus, AppConfig, DiscoveredDevice, CreateCameraInput } from '@/types';
 import { api } from '@/services/api';
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [streamStatuses, setStreamStatuses] = useState<Record<string, CameraStreamStatus>>({});
+  const [discoveredDevices, setDiscoveredDevices] = useState<DiscoveredDevice[]>([]);
+  
+  // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDiscoveryOpen, setIsDiscoveryOpen] = useState(false);
   const [cameraToEdit, setCameraToEdit] = useState<Camera | null>(null);
+  const [prefillCameraData, setPrefillCameraData] = useState<CreateCameraInput | null>(null);
+
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
 
@@ -46,8 +53,20 @@ export const App: React.FC = () => {
     }
   }, []);
 
+  // Background auto-scan for network devices
+  const runDiscoveryScan = useCallback(async () => {
+    try {
+      const found = await api.discoverDevices();
+      setDiscoveredDevices(found);
+    } catch (e) {
+      console.error('Auto discovery scan error:', e);
+    }
+  }, []);
+
   useEffect(() => {
     loadData();
+    runDiscoveryScan();
+
     // Poll telemetry stream statuses every 2 seconds
     const interval = setInterval(async () => {
       try {
@@ -63,15 +82,23 @@ export const App: React.FC = () => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [loadData, runDiscoveryScan]);
 
   const handleAddCamera = () => {
     setCameraToEdit(null);
+    setPrefillCameraData(null);
+    setIsModalOpen(true);
+  };
+
+  const handleAddSingleFromDiscovery = (prefill: CreateCameraInput) => {
+    setCameraToEdit(null);
+    setPrefillCameraData(prefill);
     setIsModalOpen(true);
   };
 
   const handleEditCamera = (cam: Camera) => {
     setCameraToEdit(cam);
+    setPrefillCameraData(null);
     setIsModalOpen(true);
   };
 
@@ -79,6 +106,7 @@ export const App: React.FC = () => {
     try {
       await api.deleteCamera(id);
       await loadData();
+      runDiscoveryScan();
     } catch (e) {
       console.error('Failed to delete camera:', e);
     }
@@ -167,13 +195,18 @@ export const App: React.FC = () => {
         totalCount={totalCount}
         title={tabTitles[currentTab].title}
         subtitle={tabTitles[currentTab].subtitle}
-        onRefresh={loadData}
+        onRefresh={() => {
+          loadData();
+          runDiscoveryScan();
+        }}
         isRefreshing={isRefreshing}
       >
         {currentTab === 'dashboard' && (
           <DashboardPage
             cameras={cameras}
             streamStatuses={streamStatuses}
+            discoveredDevices={discoveredDevices}
+            onOpenDiscovery={() => setIsDiscoveryOpen(true)}
             onNavigateTo={setCurrentTab}
             onStartStream={handleStartStream}
           />
@@ -183,6 +216,8 @@ export const App: React.FC = () => {
           <CameraList
             cameras={cameras}
             streamStatuses={streamStatuses}
+            discoveredDevices={discoveredDevices}
+            onOpenDiscovery={() => setIsDiscoveryOpen(true)}
             onAddCamera={handleAddCamera}
             onEditCamera={handleEditCamera}
             onDeleteCamera={handleDeleteCamera}
@@ -219,9 +254,26 @@ export const App: React.FC = () => {
 
       <CameraModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSaved={loadData}
+        onClose={() => {
+          setIsModalOpen(false);
+          setPrefillCameraData(null);
+        }}
+        onSaved={() => {
+          loadData();
+          runDiscoveryScan();
+        }}
         cameraToEdit={cameraToEdit}
+        prefillData={prefillCameraData}
+      />
+
+      <DiscoveryModal
+        isOpen={isDiscoveryOpen}
+        onClose={() => setIsDiscoveryOpen(false)}
+        onAdded={() => {
+          loadData();
+          runDiscoveryScan();
+        }}
+        onAddSingle={handleAddSingleFromDiscovery}
       />
     </>
   );

@@ -38,6 +38,16 @@ async fn create_camera(input: CreateCameraInput, state: State<'_, AppState>) -> 
 }
 
 #[tauri::command]
+async fn create_cameras_batch(input: BatchCreateCamerasInput, state: State<'_, AppState>) -> Result<Vec<Camera>, String> {
+    state.camera_manager.create_cameras_batch(input)
+}
+
+#[tauri::command]
+async fn discover_devices(state: State<'_, AppState>) -> Result<Vec<DiscoveredDevice>, String> {
+    state.camera_manager.discover_devices().await
+}
+
+#[tauri::command]
 async fn update_camera(input: UpdateCameraInput, state: State<'_, AppState>) -> Result<Camera, String> {
     state.camera_manager.update_camera(input)
 }
@@ -131,6 +141,8 @@ pub fn run() {
             get_cameras,
             get_camera,
             create_camera,
+            create_cameras_batch,
+            discover_devices,
             update_camera,
             delete_camera,
             test_camera_connection,

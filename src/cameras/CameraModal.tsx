@@ -8,6 +8,7 @@ interface CameraModalProps {
   onClose: () => void;
   onSaved: () => void;
   cameraToEdit?: Camera | null;
+  prefillData?: CreateCameraInput | null;
 }
 
 export const CameraModal: React.FC<CameraModalProps> = ({
@@ -15,6 +16,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
   onClose,
   onSaved,
   cameraToEdit,
+  prefillData,
 }) => {
   const [name, setName] = useState('');
   const [host, setHost] = useState('');
@@ -41,6 +43,15 @@ export const CameraModal: React.FC<CameraModalProps> = ({
       setStreamProfile((cameraToEdit.stream_profile as any) || 'main');
       setCustomRtspUrl(cameraToEdit.rtsp_url);
       setEnabled(cameraToEdit.enabled);
+    } else if (prefillData) {
+      setName(prefillData.name || '');
+      setHost(prefillData.host || '');
+      setUsername(prefillData.username || 'admin');
+      setPassword(prefillData.password || '');
+      setRtspPort(prefillData.rtsp_port || 554);
+      setStreamProfile((prefillData.stream_profile as any) || 'main');
+      setCustomRtspUrl(prefillData.rtsp_url || '');
+      setEnabled(prefillData.enabled ?? true);
     } else {
       setName('');
       setHost('');
@@ -53,7 +64,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
     }
     setTestResult(null);
     setErrorMsg(null);
-  }, [cameraToEdit, isOpen]);
+  }, [cameraToEdit, prefillData, isOpen]);
 
   if (!isOpen) return null;
 
