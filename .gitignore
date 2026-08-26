@@ -43,3 +43,4 @@ secrets/
 # OS files
 .DS_Store
 Thumbs.db
+release-packages/
