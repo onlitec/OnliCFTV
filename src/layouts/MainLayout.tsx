@@ -28,7 +28,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   children,
 }) => {
   return (
-    <div className="flex h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
+    <div className="flex h-screen w-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-sans transition-colors">
       <Sidebar
         currentTab={currentTab}
         onSelectTab={onSelectTab}
@@ -45,7 +45,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           extraActions={extraHeaderActions}
         />
 
-        <main className="flex-1 overflow-hidden relative bg-slate-950/60">
+        <main className="flex-1 overflow-hidden relative bg-slate-100/70 dark:bg-slate-950/60">
           {children}
         </main>
       </div>

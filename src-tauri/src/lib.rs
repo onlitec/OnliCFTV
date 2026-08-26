@@ -130,6 +130,16 @@ async fn quick_view_set_osd(input: QuickViewSetOsdInput, state: State<'_, AppSta
     state.camera_manager.quick_view_set_osd(input).await
 }
 
+#[tauri::command]
+async fn start_device_preview(input: QuickViewConnectInput, state: State<'_, AppState>) -> Result<String, String> {
+    state.camera_manager.start_device_preview(input).await
+}
+
+#[tauri::command]
+async fn stop_device_preview(ip: String, state: State<'_, AppState>) -> Result<(), String> {
+    state.camera_manager.stop_device_preview(&ip).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let config = AppConfig::default();
@@ -185,7 +195,9 @@ pub fn run() {
             quick_view_connect,
             quick_view_disconnect,
             quick_view_set_device_name,
-            quick_view_set_osd
+            quick_view_set_osd,
+            start_device_preview,
+            stop_device_preview
         ])
         .run(tauri::generate_context!())
         .expect("error while running OnliView application");

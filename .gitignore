@@ -7,6 +7,10 @@ dist-ssr/
 # Tauri & Rust
 src-tauri/target/
 src-tauri/Cargo.lock
+release-windows/
+*.exe
+*.msi
+*.dll
 
 # Database & Runtime
 *.db

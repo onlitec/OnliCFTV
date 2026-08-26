@@ -1,4 +1,6 @@
 use std::time::Duration;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use md5::{Md5, Digest};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -42,11 +44,22 @@ pub struct IsapiDeviceInfo {
     pub device_type: Option<String>,
 }
 
+#[derive(Debug, Clone, Default)]
+struct DigestState {
+    realm: String,
+    nonce: String,
+    qop: String,
+    opaque: String,
+    nc: u32,
+    is_authenticated: bool,
+}
+
 pub struct IsapiClient {
     ip: String,
     port: u16,
     username: String,
     password: String,
+    auth_state: Arc<Mutex<DigestState>>,
 }
 
 impl IsapiClient {
@@ -56,6 +69,7 @@ impl IsapiClient {
             port: if port == 0 { 80 } else { port },
             username: username.to_string(),
             password: password.to_string(),
+            auth_state: Arc::new(Mutex::new(DigestState::default())),
         }
     }
 
@@ -65,41 +79,104 @@ impl IsapiClient {
         uri: &str,
         body: Option<&str>,
     ) -> Result<(u16, String), String> {
-        // Step 1: Initial unauthenticated / probe request
+        let mut state = self.auth_state.lock().await;
+
+        // Try using existing authenticated session first
+        if state.is_authenticated && !state.nonce.is_empty() {
+            state.nc += 1;
+            let auth_hdr = self.build_digest_header(method, uri, &state);
+            let (code, headers, resp_body) = self.raw_send(method, uri, body, Some(&auth_hdr)).await?;
+            if code != 401 {
+                return Ok((code, resp_body));
+            }
+            // If 401, nonce became stale, parse new header below
+            self.parse_auth_headers(&headers, &mut state);
+        }
+
+        // Unauthenticated probe / handshake
         let (code, headers, resp_body) = self.raw_send(method, uri, body, None).await?;
         if code != 401 {
             return Ok((code, resp_body));
         }
 
-        // Step 2: Extract Auth header from 401
-        let mut digest_header = None;
-        let mut basic_header = None;
+        // Parse WWW-Authenticate
+        self.parse_auth_headers(&headers, &mut state);
 
+        if state.realm.is_empty() || state.nonce.is_empty() {
+            // Try Basic Auth fallback
+            let cred = format!("{}:{}", self.username, self.password);
+            let basic = format!("Basic {}", BASE64.encode(cred));
+            let (code_b, _, resp_b) = self.raw_send(method, uri, body, Some(&basic)).await?;
+            return Ok((code_b, resp_b));
+        }
+
+        state.nc = 1;
+        state.is_authenticated = true;
+        let auth_hdr = self.build_digest_header(method, uri, &state);
+
+        let (code2, _, resp_body2) = self.raw_send(method, uri, body, Some(&auth_hdr)).await?;
+        Ok((code2, resp_body2))
+    }
+
+    fn parse_auth_headers(&self, headers: &str, state: &mut DigestState) {
         for line in headers.lines() {
             let l = line.trim();
             if l.to_lowercase().starts_with("www-authenticate:") {
                 let auth_val = l[17..].trim();
                 if auth_val.to_lowercase().starts_with("digest") {
-                    digest_header = Some(auth_val[6..].trim().to_string());
-                } else if auth_val.to_lowercase().starts_with("basic") {
-                    basic_header = Some(auth_val[5..].trim().to_string());
+                    let params = auth_val[6..].trim();
+                    for item in params.split(',') {
+                        let part = item.trim();
+                        if let Some((k, v)) = part.split_once('=') {
+                            let key = k.trim().to_lowercase();
+                            let val = v.trim().trim_matches('"').to_string();
+                            match key.as_str() {
+                                "realm" => state.realm = val,
+                                "nonce" => state.nonce = val,
+                                "qop" => state.qop = val,
+                                "opaque" => state.opaque = val,
+                                _ => {}
+                            }
+                        }
+                    }
                 }
             }
         }
+    }
 
-        // Step 3: Compute Authentication Header
-        let auth_str = if let Some(digest_params) = digest_header {
-            self.generate_digest_header(method, uri, &digest_params)?
-        } else if basic_header.is_some() {
-            let cred = format!("{}:{}", self.username, self.password);
-            format!("Basic {}", BASE64.encode(cred))
+    fn build_digest_header(&self, method: &str, uri: &str, state: &DigestState) -> String {
+        // HA1 = MD5(username:realm:password)
+        let ha1_raw = format!("{}:{}:{}", self.username, state.realm, self.password);
+        let ha1 = format!("{:x}", Md5::digest(ha1_raw.as_bytes()));
+
+        // HA2 = MD5(method:uri)
+        let ha2_raw = format!("{}:{}", method, uri);
+        let ha2 = format!("{:x}", Md5::digest(ha2_raw.as_bytes()));
+
+        let cnonce = Uuid::new_v4().to_string().replace('-', "")[..16].to_string();
+        let nc_str = format!("{:08x}", state.nc);
+
+        let response = if state.qop.contains("auth") {
+            let resp_raw = format!("{}:{}:{}:{}:auth:{}", ha1, state.nonce, nc_str, cnonce, ha2);
+            format!("{:x}", Md5::digest(resp_raw.as_bytes()))
         } else {
-            return Err("Dispositivo exigiu autenticação mas não informou método suportado".to_string());
+            let resp_raw = format!("{}:{}:{}", ha1, state.nonce, ha2);
+            format!("{:x}", Md5::digest(resp_raw.as_bytes()))
         };
 
-        // Step 4: Retry with Authorization header
-        let (code2, _, resp_body2) = self.raw_send(method, uri, body, Some(&auth_str)).await?;
-        Ok((code2, resp_body2))
+        let mut auth = format!(
+            "Digest username=\"{}\", realm=\"{}\", nonce=\"{}\", uri=\"{}\", response=\"{}\"",
+            self.username, state.realm, state.nonce, uri, response
+        );
+
+        if state.qop.contains("auth") {
+            auth.push_str(&format!(", qop=auth, nc={}, cnonce=\"{}\"", nc_str, cnonce));
+        }
+        if !state.opaque.is_empty() {
+            auth.push_str(&format!(", opaque=\"{}\"", state.opaque));
+        }
+
+        auth
     }
 
     async fn raw_send(
@@ -111,7 +188,7 @@ impl IsapiClient {
     ) -> Result<(u16, String, String), String> {
         let addr = format!("{}:{}", self.ip, self.port);
         let mut stream = tokio::time::timeout(
-            Duration::from_millis(2500),
+            Duration::from_millis(3000),
             TcpStream::connect(&addr)
         )
         .await
@@ -147,7 +224,7 @@ impl IsapiClient {
         let mut temp = [0u8; 4096];
 
         loop {
-            match tokio::time::timeout(Duration::from_millis(2500), stream.read(&mut temp)).await {
+            match tokio::time::timeout(Duration::from_millis(3000), stream.read(&mut temp)).await {
                 Ok(Ok(n)) if n > 0 => {
                     buf.extend_from_slice(&temp[..n]);
                     if buf.len() > 65536 {
@@ -173,65 +250,6 @@ impl IsapiClient {
             .unwrap_or(0);
 
         Ok((status_code, header_part.to_string(), body_part.to_string()))
-    }
-
-    fn generate_digest_header(&self, method: &str, uri: &str, params_str: &str) -> Result<String, String> {
-        let mut realm = String::new();
-        let mut nonce = String::new();
-        let mut qop = String::new();
-        let mut opaque = String::new();
-
-        for item in params_str.split(',') {
-            let part = item.trim();
-            if let Some((k, v)) = part.split_once('=') {
-                let key = k.trim().to_lowercase();
-                let val = v.trim().trim_matches('"');
-                match key.as_str() {
-                    "realm" => realm = val.to_string(),
-                    "nonce" => nonce = val.to_string(),
-                    "qop" => qop = val.to_string(),
-                    "opaque" => opaque = val.to_string(),
-                    _ => {}
-                }
-            }
-        }
-
-        if realm.is_empty() || nonce.is_empty() {
-            return Err("Parâmetros de Digest Auth inválidos recebidos da câmera".to_string());
-        }
-
-        // HA1 = MD5(username:realm:password)
-        let ha1_raw = format!("{}:{}:{}", self.username, realm, self.password);
-        let ha1 = format!("{:x}", Md5::digest(ha1_raw.as_bytes()));
-
-        // HA2 = MD5(method:uri)
-        let ha2_raw = format!("{}:{}", method, uri);
-        let ha2 = format!("{:x}", Md5::digest(ha2_raw.as_bytes()));
-
-        let cnonce = Uuid::new_v4().to_string().replace('-', "")[..16].to_string();
-        let nc = "00000001";
-
-        let response = if qop.contains("auth") {
-            let resp_raw = format!("{}:{}:{}:{}:auth:{}", ha1, nonce, nc, cnonce, ha2);
-            format!("{:x}", Md5::digest(resp_raw.as_bytes()))
-        } else {
-            let resp_raw = format!("{}:{}:{}", ha1, nonce, ha2);
-            format!("{:x}", Md5::digest(resp_raw.as_bytes()))
-        };
-
-        let mut auth = format!(
-            "Digest username=\"{}\", realm=\"{}\", nonce=\"{}\", uri=\"{}\", response=\"{}\"",
-            self.username, realm, nonce, uri, response
-        );
-
-        if qop.contains("auth") {
-            auth.push_str(&format!(", qop=auth, nc={}, cnonce=\"{}\"", nc, cnonce));
-        }
-        if !opaque.is_empty() {
-            auth.push_str(&format!(", opaque=\"{}\"", opaque));
-        }
-
-        Ok(auth)
     }
 
     pub async fn get_device_info(&self) -> Result<IsapiDeviceInfo, String> {

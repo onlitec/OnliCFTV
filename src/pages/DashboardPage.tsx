@@ -21,6 +21,7 @@ import { DiscoveryPanel } from '@/components/DiscoveryPanel';
 import { api } from '@/services/api';
 
 interface DashboardPageProps {
+  viewMode?: 'discovery' | 'cameras';
   cameras: Camera[];
   streamStatuses: Record<string, CameraStreamStatus>;
   discoveredDevices: DiscoveredDevice[];
@@ -37,6 +38,7 @@ interface DashboardPageProps {
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({
+  viewMode = 'discovery',
   cameras,
   streamStatuses,
   discoveredDevices,
@@ -80,19 +82,36 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }
   };
 
+  // 1. DISCOVERY & COMMISSIONING VIEW (Full Screen HiTools Delivery Style)
+  if (viewMode === 'discovery') {
+    return (
+      <div className="p-4 h-full flex flex-col select-none overflow-hidden">
+        <DiscoveryPanel
+          discoveredDevices={discoveredDevices}
+          isScanning={isScanning}
+          onRefreshScan={onRefreshScan}
+          onAdded={onDataChanged}
+          onAddSingle={onAddSingleFromDiscovery}
+          onOpenManualAdd={onAddCamera}
+        />
+      </div>
+    );
+  }
+
+  // 2. REGISTERED CAMERAS VIEW
   return (
     <div className="p-6 space-y-6 max-h-full overflow-y-auto select-none">
       {/* Top Bar */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-            <span>Painel de Instalação e Câmeras</span>
+            <span>Dispositivos & Câmeras Cadastradas</span>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
               {cameras.length} Cadastrada(s)
             </span>
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Clique em qualquer câmera abaixo para abrir imediatamente a imagem e ajustar enquadramento, foco e OSD.
+            Gerenciamento e monitoramento de streams das câmeras adicionadas ao sistema.
           </p>
         </div>
 
@@ -114,14 +133,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </div>
       </div>
 
-      {/* CENTER: Added Cameras Grid */}
+      {/* Added Cameras Grid */}
       <div>
         {cameras.length === 0 ? (
-          <div className="bg-slate-900/60 border border-dashed border-slate-800 rounded-xl p-8 text-center">
-            <CameraIcon className="h-10 w-10 text-slate-600 mx-auto mb-2" />
-            <h4 className="text-sm font-bold text-white mb-1">Nenhuma câmera cadastrada ainda</h4>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto mb-3">
-              Utilize o painel de busca inteligente abaixo para localizar e adicionar dispositivos da rede local com 1 clique.
+          <div className="bg-slate-900/60 border border-dashed border-slate-800 rounded-xl p-12 text-center space-y-3">
+            <CameraIcon className="h-12 w-12 text-slate-600 mx-auto" />
+            <h4 className="text-base font-bold text-white">Nenhuma câmera cadastrada ainda</h4>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              Utilize a aba de Descoberta & Comissionamento para localizar e cadastrar dispositivos da rede local com 1 clique.
             </p>
           </div>
         ) : (
@@ -210,7 +229,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                   <div className="mb-3">
                     <div className="w-full py-2 rounded-lg bg-sky-600/20 group-hover:bg-sky-600 text-sky-300 group-hover:text-white border border-sky-500/30 text-xs font-bold flex items-center justify-center gap-2 transition shadow">
                       <Eye className="h-4 w-4" />
-                      <span>Abrir Imagem Ao Vivo & Ajustar OSD</span>
+                      <span>Abrir Imagem Ao Vivo</span>
                     </div>
                   </div>
 
@@ -280,17 +299,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             })}
           </div>
         )}
-      </div>
-
-      {/* BOTTOM: Integrated Intelligent Discovery Panel */}
-      <div>
-        <DiscoveryPanel
-          discoveredDevices={discoveredDevices}
-          isScanning={isScanning}
-          onRefreshScan={onRefreshScan}
-          onAdded={onDataChanged}
-          onAddSingle={onAddSingleFromDiscovery}
-        />
       </div>
     </div>
   );

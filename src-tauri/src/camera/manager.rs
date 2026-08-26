@@ -251,3 +251,38 @@ impl CameraManager {
         }
     }
 }
+
+impl CameraManager {
+    pub async fn start_device_preview(&self, input: QuickViewConnectInput) -> Result<String, String> {
+        let host = input.ip.trim().to_string();
+        let rtsp_port = input.rtsp_port.unwrap_or(554);
+        let http_port = input.http_port.unwrap_or(80);
+        let username = input.username.trim().to_string();
+        let password = input.password.unwrap_or_default();
+
+        let isapi_client = IsapiClient::new(&host, http_port, &username, &password);
+        
+        // Try substream first (102) for low-bandwidth thumbnail, fallback to main (101)
+        let channel_path = "/Streaming/Channels/102";
+        let full_rtsp_url = build_authenticated_rtsp_url(&host, rtsp_port, &username, &password, channel_path);
+
+        let session_id = format!("preview_{}", host.replace('.', "_"));
+        
+        // Connect to stream in VideoEngine
+        if let Err(_) = self.video_engine.connect(&session_id, &full_rtsp_url).await {
+            // Fallback to main stream
+            let main_path = isapi_client.discover_streaming_channel_url().await;
+            let fallback_url = build_authenticated_rtsp_url(&host, rtsp_port, &username, &password, &main_path);
+            self.video_engine.connect(&session_id, &fallback_url).await?;
+        }
+
+        let stream_url = format!("http://127.0.0.1:{}/stream/{}", self.video_engine.server_port(), session_id);
+        Ok(stream_url)
+    }
+
+    pub async fn stop_device_preview(&self, ip: &str) -> Result<(), String> {
+        let session_id = format!("preview_{}", ip.trim().replace('.', "_"));
+        self.video_engine.stop(&session_id).await.ok();
+        Ok(())
+    }
+}

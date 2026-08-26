@@ -100,4 +100,12 @@ export const api = {
   async quickViewSetOsd(input: QuickViewSetOsdInput): Promise<void> {
     return await invoke('quick_view_set_osd', { input });
   },
+
+  async startDevicePreview(input: QuickViewConnectInput): Promise<string> {
+    return await invoke('start_device_preview', { input });
+  },
+
+  async stopDevicePreview(ip: string): Promise<void> {
+    return await invoke('stop_device_preview', { ip });
+  },
 };

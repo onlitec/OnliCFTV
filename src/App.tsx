@@ -167,12 +167,24 @@ export const App: React.FC = () => {
 
   const tabTitles: Record<NavTab, { title: string; subtitle: string }> = {
     dashboard: {
-      title: 'Comissionamento & Câmeras',
-      subtitle: 'Visão de dispositivos instalados e busca inteligente na rede local',
+      title: 'Descoberta & Comissionamento de Dispositivos',
+      subtitle: 'Varredura de rede, preview ao vivo em campo e configuração rápida de OSD / Device Name',
+    },
+    cameras: {
+      title: 'Dispositivos & Câmeras Cadastradas',
+      subtitle: 'Gerenciamento dos dispositivos adicionados ao sistema OnliView',
     },
     live: {
-      title: 'Visualização Ao Vivo & Enquadramento',
-      subtitle: 'Monitoramento em tempo real para alinhamento de foco e OSD',
+      title: 'Visualização Ao Vivo & Mosaico',
+      subtitle: 'Monitoramento em tempo real para alinhamento de foco, enquadramento e OSD',
+    },
+    events: {
+      title: 'Eventos & Alertas do Sistema',
+      subtitle: 'Detecção de movimento, tamper e anomalias de rede',
+    },
+    recordings: {
+      title: 'Gravações & Playback',
+      subtitle: 'Reprodução de imagens e exportação de evidências',
     },
     settings: {
       title: 'Configurações do OnliView',
@@ -197,6 +209,29 @@ export const App: React.FC = () => {
       >
         {currentTab === 'dashboard' && (
           <DashboardPage
+            viewMode="discovery"
+            cameras={cameras}
+            streamStatuses={streamStatuses}
+            discoveredDevices={discoveredDevices}
+            isScanning={isScanning}
+            onRefreshScan={runDiscoveryScan}
+            onAddCamera={handleAddCamera}
+            onEditCamera={handleEditCamera}
+            onDeleteCamera={handleDeleteCamera}
+            onStartStream={handleStartStream}
+            onStopStream={handleStopStream}
+            onOpenLiveCamera={handleOpenLiveCamera}
+            onAddSingleFromDiscovery={handleAddSingleFromDiscovery}
+            onDataChanged={() => {
+              loadData();
+              runDiscoveryScan();
+            }}
+          />
+        )}
+
+        {currentTab === 'cameras' && (
+          <DashboardPage
+            viewMode="cameras"
             cameras={cameras}
             streamStatuses={streamStatuses}
             discoveredDevices={discoveredDevices}
@@ -230,6 +265,15 @@ export const App: React.FC = () => {
         )}
 
         {currentTab === 'settings' && <SettingsPage />}
+
+        {(currentTab === 'events' || currentTab === 'recordings') && (
+          <div className="p-12 text-center text-slate-400 space-y-3">
+            <h3 className="text-lg font-bold text-white">Módulo em Desenvolvimento</h3>
+            <p className="text-xs max-w-sm mx-auto">
+              Esta funcionalidade será disponibilizada na próxima versão do OnliView VMS.
+            </p>
+          </div>
+        )}
       </MainLayout>
 
       <CameraModal
