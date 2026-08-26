@@ -284,7 +284,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
 
   return (
     <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-md dark:shadow-2xl flex flex-col h-[calc(100vh-5.5rem)] transition-colors">
-      {/* 1. TOP HEADER TOOLBAR — HiTools Delivery Style */}
+      {/* 1. TOP HEADER TOOLBAR — Commissioning Controls */}
       <div className="px-5 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
         {/* Left: Sub-network tabs and Device Count */}
         <div className="flex items-center gap-3">
@@ -529,7 +529,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
         )}
       </div>
 
-      {/* 3. HIGH DENSITY TABLE AREA — HiTools Delivery Style */}
+      {/* 3. HIGH DENSITY TABLE AREA */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {isScanning && (discoveredDevices || []).length === 0 ? (
           <div className="py-20 text-center space-y-3">
@@ -608,7 +608,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                         />
                       </td>
 
-                      {/* IP (Clickable Blue Link like HiTools Delivery) */}
+                      {/* IP (Clickable Blue Link) */}
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-1 font-bold text-sky-600 dark:text-sky-400 text-xs">
                           <span
@@ -657,7 +657,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                         </div>
                       </td>
 
-                      {/* Status / Activation (HiTools ATIVADO Style) */}
+                      {/* Status / Activation */}
                       <td className="px-3 py-2">
                         <span
                           className={`text-[11px] font-bold ${
@@ -788,7 +788,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
         )}
       </div>
 
-      {/* 4. BOTTOM FLOATING BATCH BAR — HiTools Delivery Style */}
+      {/* 4. BOTTOM FLOATING BATCH BAR */}
       <div className="px-5 py-2.5 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shrink-0 transition-colors">
         <div className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
           <span className="font-bold">

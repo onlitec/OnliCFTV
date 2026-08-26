@@ -82,7 +82,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }
   };
 
-  // 1. DISCOVERY & COMMISSIONING VIEW (Full Screen HiTools Delivery Style)
+  // 1. DISCOVERY & COMMISSIONING VIEW (Full Screen Commissioning Center)
   if (viewMode === 'discovery') {
     return (
       <div className="p-4 h-full flex flex-col select-none overflow-hidden">

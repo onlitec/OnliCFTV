@@ -16,7 +16,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (saved === 'dark' || saved === 'light') {
       return saved;
     }
-    return 'light'; // Default to HiTools clean light theme
+    return 'light'; // Default to clean light theme
   });
 
   const applyTheme = (newTheme: Theme) => {

@@ -70,7 +70,7 @@ Baixe a versão mais recente diretamente da aba [Releases](https://github.com/on
 - **Captura de Snapshot & Tela Cheia**: Ferramentas de alinhamento de foco e enquadramento.
 
 ### 🎨 Design Dual Theme (White & Dark)
-- **Tema Claro (HiTools Delivery Style)**: Interface limpa com tons de branco, cinza técnico e botões em azul vibrante.
+- **Tema Claro (White & Blue)**: Interface limpa com tons de branco, cinza técnico e botões em azul vibrante.
 - **Tema Escuro Moderno**: Visual Dark projetado para salas de monitoramento e NOC.
 - **Alternância Instantânea**: Botão de 1 clique no cabeçalho com persistência em `localStorage`.
 
@@ -86,7 +86,7 @@ Baixe a versão mais recente diretamente da aba [Releases](https://github.com/on
 ```
 [ Frontend: React 18 + Tailwind + Vite ]
    │
-   ├── [ Contexto de Tema: Light (HiTools) / Dark ]
+   ├── [ Contexto de Tema: Light / Dark ]
    ├── [ Tabela de Comissionamento de Alta Densidade ]
    ├── [ Célula de Preview / Thumbnails Sob Demanda ]
    └── [ Quick Viewer Modal com Live Stream e Ajuste OSD ]

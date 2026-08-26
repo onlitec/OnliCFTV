@@ -35,7 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={toggleTheme}
           className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition border border-slate-200 dark:border-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm"
-          title={theme === 'dark' ? 'Alternar para Tema Claro (HiTools White)' : 'Alternar para Tema Escuro (Dark)'}
+          title={theme === 'dark' ? 'Alternar para Tema Claro' : 'Alternar para Tema Escuro'}
         >
           {theme === 'dark' ? (
             <>
