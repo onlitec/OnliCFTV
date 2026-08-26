@@ -1,21 +1,23 @@
 use std::time::Instant;
-use tokio::process::Command;
 use serde_json::Value;
 use crate::camera::model::CameraConnectionTestResult;
 use crate::logging::logger::sanitize_credentials;
+use crate::video::bin_locator::{get_ffprobe_path, create_hidden_command};
 
 pub async fn probe_rtsp_stream(full_rtsp_url: &str) -> CameraConnectionTestResult {
     let start_time = Instant::now();
+    let ffprobe_bin = get_ffprobe_path();
     
-    // Call ffprobe with TCP transport and 5 second timeout
-    let output = Command::new("ffprobe")
+    // Call ffprobe with TCP transport, hidden flags, and fast 2.5 second timeout
+    let mut cmd = create_hidden_command(&ffprobe_bin);
+    let output = cmd
         .args([
             "-v", "quiet",
             "-print_format", "json",
             "-show_streams",
             "-show_format",
             "-rtsp_transport", "tcp",
-            "-timeout", "5000000",
+            "-timeout", "2500000",
             full_rtsp_url,
         ])
         .output()

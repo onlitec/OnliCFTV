@@ -38,8 +38,8 @@ Baixe a versão mais recente diretamente da aba [Releases](https://github.com/on
 ### 🪟 Windows (10 / 11 - 64 bits)
 | Pacote | Tipo | Descrição |
 |---|---|---|
-| [**OnliView_0.1.0_x64-setup.exe**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.0_x64-setup.exe) | **Instalador Oficial (NSIS)** | Assistente completo com atalhos no Desktop/Menu Iniciar e desinstalador |
-| [**OnliView_Windows_Portable.exe**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_Windows_Portable.exe) | **Executável Portátil** | Execução direta sem necessidade de instalação |
+| [**OnliView_0.1.0_x64-setup.exe**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.0_x64-setup.exe) | **Instalador Oficial (NSIS)** | Assistente completo com atalhos no Desktop/Menu Iniciar, desinstalador e motor FFmpeg embutido |
+| [**OnliView_Windows_Portable_v0.1.0.zip**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_Windows_Portable_v0.1.0.zip) | **Pacote Portátil (ZIP)** | Execução direta sem instalação (inclui `onliview.exe` e binários do motor de vídeo) |
 
 ### 🐧 Linux (Ubuntu / Debian / Fedora / RedHat)
 | Pacote | Tipo | Comando de Instalação |

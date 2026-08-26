@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, watch, RwLock};
-use tokio::process::Command;
 use tokio::io::AsyncReadExt;
 use serde::{Serialize, Deserialize};
 
@@ -178,20 +177,27 @@ async fn run_camera_stream_worker(
 
         logger.log("INFO", "VideoEngine", &format!("Tentando conexão RTSP ({}) para câmera {}", reconnect_count + 1, camera_id));
 
+        let ffmpeg_bin = crate::video::bin_locator::get_ffmpeg_path();
+        logger.log("INFO", "VideoEngine", &format!("Utilizando motor FFmpeg em: {}", ffmpeg_bin));
+
         // Spawn FFmpeg to extract MJPEG frames via stdout pipe with low-latency flags
-        let mut child = match Command::new("ffmpeg")
+        let mut cmd = crate::video::bin_locator::create_hidden_command(&ffmpeg_bin);
+        let mut child = match cmd
             .args([
                 "-hide_banner",
                 "-loglevel", "error",
                 "-rtsp_transport", "tcp",
-                "-timeout", "5000000",
+                "-stimeout", "3000000",
+                "-timeout", "3000000",
                 "-fflags", "nobuffer+discardcorrupt",
                 "-flags", "low_delay",
+                "-analyzeduration", "1000000",
+                "-probesize", "1000000",
                 "-i", &rtsp_url,
                 "-an",
                 "-c:v", "mjpeg",
-                "-q:v", "5",
-                "-r", "20",
+                "-q:v", "4",
+                "-r", "25",
                 "-f", "image2pipe",
                 "-vcodec", "mjpeg",
                 "pipe:1",
@@ -202,12 +208,12 @@ async fn run_camera_stream_worker(
         {
             Ok(c) => c,
             Err(e) => {
-                let err_msg = format!("Falha ao iniciar motor FFmpeg: {}", e);
+                let err_msg = format!("Falha ao iniciar motor FFmpeg ({}): {}", ffmpeg_bin, e);
                 logger.log("ERROR", "VideoEngine", &err_msg);
                 let mut st = status.write().await;
                 st.state = StreamState::Error;
                 st.error_message = Some(err_msg);
-                tokio::time::sleep(Duration::from_secs(5)).await;
+                tokio::time::sleep(Duration::from_secs(3)).await;
                 reconnect_count += 1;
                 continue;
             }
