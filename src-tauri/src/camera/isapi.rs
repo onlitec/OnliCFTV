@@ -267,7 +267,7 @@ impl IsapiClient {
         );
 
         let (code, body) = self.http_request("PUT", "/ISAPI/System/deviceInfo", Some(&xml)).await?;
-        if code == 200 || body.contains("<statusValue>200</statusValue>") || body.contains("OK") {
+        if code == 200 || body.contains("<statusValue>200</statusValue>") || body.contains("<statusValue>1</statusValue>") || body.contains("OK") {
             Ok(())
         } else if code == 403 || body.contains("403") {
             Err("Usuário autenticado sem permissão para alterar o nome do dispositivo".to_string())
@@ -277,20 +277,34 @@ impl IsapiClient {
     }
 
     pub async fn get_osd_title(&self, channel_id: u32) -> Result<String, String> {
-        let uri = format!("/ISAPI/System/Video/inputs/channels/{}/title", channel_id);
-        let (code, body) = self.http_request("GET", &uri, None).await?;
-        if code == 200 {
+        // Try 1: Streaming Channel 101 or 100 + channel_id (Standard Hikvision IP Camera)
+        let ch_id = if channel_id <= 1 { 101 } else { channel_id * 100 + 1 };
+        let uri_stream = format!("/ISAPI/Streaming/channels/{}", ch_id);
+        if let Ok((200, body)) = self.http_request("GET", &uri_stream, None).await {
             if let Some(title) = extract_xml_tag(&body, "channelName") {
-                return Ok(title);
+                if !title.is_empty() {
+                    return Ok(title);
+                }
             }
         }
 
-        // Alternative overlay endpoint
+        // Try 2: Video Overlay
         let uri_ov = format!("/ISAPI/System/Video/inputs/channels/{}/overlays", channel_id);
-        let (code_ov, body_ov) = self.http_request("GET", &uri_ov, None).await?;
-        if code_ov == 200 {
-            if let Some(title) = extract_xml_tag(&body_ov, "channelName") {
-                return Ok(title);
+        if let Ok((200, body_ov)) = self.http_request("GET", &uri_ov, None).await {
+            if let Some(title) = extract_xml_tag(&body_ov, "name") {
+                if !title.is_empty() {
+                    return Ok(title);
+                }
+            }
+        }
+
+        // Try 3: Video Inputs title
+        let uri_title = format!("/ISAPI/System/Video/inputs/channels/{}/title", channel_id);
+        if let Ok((200, body_title)) = self.http_request("GET", &uri_title, None).await {
+            if let Some(title) = extract_xml_tag(&body_title, "channelName") {
+                if !title.is_empty() {
+                    return Ok(title);
+                }
             }
         }
 
@@ -298,29 +312,41 @@ impl IsapiClient {
     }
 
     pub async fn set_osd_title(&self, channel_id: u32, new_title: &str) -> Result<(), String> {
-        let xml = format!(
+        let ch_id = if channel_id <= 1 { 101 } else { channel_id * 100 + 1 };
+
+        // Try 1: Streaming channelName (Universal on modern Hikvision cameras)
+        let stream_xml = format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?><StreamingChannel version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema"><id>{}</id><channelName>{}</channelName><enabled>true</enabled></StreamingChannel>"#,
+            ch_id, new_title
+        );
+        let uri_stream = format!("/ISAPI/Streaming/channels/{}", ch_id);
+        if let Ok((code, body)) = self.http_request("PUT", &uri_stream, Some(&stream_xml)).await {
+            if code == 200 || body.contains("<statusValue>1</statusValue>") || body.contains("OK") {
+                return Ok(());
+            }
+        }
+
+        // Try 2: Video inputs title
+        let xml_title = format!(
             r#"<?xml version="1.0" encoding="UTF-8"?><channelTitleOverlay xmlns="http://www.hikvision.com/ver20/XMLSchema" version="2.0"><channelName>{}</channelName></channelTitleOverlay>"#,
             new_title
         );
-
         let uri = format!("/ISAPI/System/Video/inputs/channels/{}/title", channel_id);
-        let (code, body) = self.http_request("PUT", &uri, Some(&xml)).await?;
-        if code == 200 || body.contains("<statusValue>200</statusValue>") || body.contains("OK") {
-            return Ok(());
+        if let Ok((code, body)) = self.http_request("PUT", &uri, Some(&xml_title)).await {
+            if code == 200 || body.contains("<statusValue>200</statusValue>") || body.contains("OK") {
+                return Ok(());
+            }
         }
 
-        // Alternative overlay endpoint
+        // Try 3: Video overlays channelTitle
         let uri_ov = format!("/ISAPI/System/Video/inputs/channels/{}/overlays/channelTitle", channel_id);
-        let (code2, body2) = self.http_request("PUT", &uri_ov, Some(&xml)).await?;
-        if code2 == 200 || body2.contains("<statusValue>200</statusValue>") || body2.contains("OK") {
-            return Ok(());
+        if let Ok((code2, body2)) = self.http_request("PUT", &uri_ov, Some(&xml_title)).await {
+            if code2 == 200 || body2.contains("<statusValue>200</statusValue>") || body2.contains("OK") {
+                return Ok(());
+            }
         }
 
-        if code == 403 || code2 == 403 {
-            Err("Usuário autenticado sem permissão para alterar o OSD do dispositivo".to_string())
-        } else {
-            Err(format!("Falha ao alterar OSD (HTTP {}): {}", code, body))
-        }
+        Err("Falha ao gravar OSD no dispositivo (Nenhum endpoint de overlay respondeu com sucesso)".to_string())
     }
 
     pub async fn discover_streaming_channel_url(&self) -> String {
@@ -350,14 +376,35 @@ impl IsapiClient {
             auth_type: "Digest".to_string(),
         };
 
-        // Test OSD capability
-        if let Ok((code, _)) = self.http_request("GET", "/ISAPI/System/Video/inputs/channels/1/title", None).await {
-            if code == 403 {
+        // 1. Check User Level via /ISAPI/Security/users
+        if let Ok((code, body)) = self.http_request("GET", "/ISAPI/Security/users", None).await {
+            if code == 200 {
+                let body_lower = body.to_lowercase();
+                if body_lower.contains("administrator") || body_lower.contains("admin") {
+                    caps.user_permission = UserPermission::Admin;
+                    caps.can_change_device_name = true;
+                    caps.can_change_osd = true;
+                } else if body_lower.contains("operator") {
+                    caps.user_permission = UserPermission::Operator;
+                    caps.can_change_device_name = false;
+                    caps.can_change_osd = false;
+                } else if body_lower.contains("viewer") || body_lower.contains("user") {
+                    caps.user_permission = UserPermission::ViewOnly;
+                    caps.can_change_device_name = false;
+                    caps.can_change_osd = false;
+                }
+            } else if code == 403 {
+                // Non-admin user cannot access /ISAPI/Security/users
                 caps.user_permission = UserPermission::ViewOnly;
                 caps.can_change_device_name = false;
                 caps.can_change_osd = false;
-            } else if code != 200 && code != 401 {
-                caps.can_change_osd = false;
+            }
+        } else {
+            // Fallback: If deviceInfo succeeded with 200, assume admin
+            if let Ok(info) = self.get_device_info().await {
+                if !info.model.is_empty() {
+                    caps.user_permission = UserPermission::Admin;
+                }
             }
         }
 
