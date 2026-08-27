@@ -5,6 +5,8 @@ import {
   Trash2,
   Search,
   Terminal,
+  Copy,
+  Check,
 } from 'lucide-react';
 import type { Camera, CameraStreamStatus, LogEntry } from '@/types';
 import { api } from '@/services/api';
@@ -24,6 +26,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsProps> = ({
   const [filterLevel, setFilterLevel] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [justCopied, setJustCopied] = useState(false);
 
   const loadLogs = async () => {
     setIsRefreshing(true);
@@ -46,6 +49,19 @@ export const DiagnosticsPage: React.FC<DiagnosticsProps> = ({
   const handleClearLogs = async () => {
     await api.clearLogs();
     setLogs([]);
+  };
+
+  const handleCopyLogs = async () => {
+    const text = filteredLogs
+      .map((log) => `${new Date(log.timestamp).toLocaleString()} [${log.level}] [${log.target}] ${log.message}`)
+      .join('\n');
+    try {
+      await navigator.clipboard.writeText(text || 'Nenhum log para copiar.');
+      setJustCopied(true);
+      setTimeout(() => setJustCopied(false), 2000);
+    } catch (e) {
+      console.error('Falha ao copiar logs:', e);
+    }
   };
 
   const filteredLogs = logs.filter((log) => {
@@ -195,6 +211,20 @@ export const DiagnosticsPage: React.FC<DiagnosticsProps> = ({
               <option value="ERROR">ERROR</option>
               <option value="DEBUG">DEBUG</option>
             </select>
+
+            {/* Copy to clipboard */}
+            <button
+              onClick={handleCopyLogs}
+              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition ${
+                justCopied
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+              }`}
+              title="Copiar logs visíveis para a área de transferência"
+            >
+              {justCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              <span>{justCopied ? 'Copiado!' : 'Copiar Logs'}</span>
+            </button>
           </div>
         </div>
 

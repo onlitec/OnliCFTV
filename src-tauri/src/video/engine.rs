@@ -194,7 +194,6 @@ async fn run_camera_stream_worker(
                 "-hide_banner",
                 "-loglevel", "error",
                 "-rtsp_transport", "tcp",
-                "-stimeout", "3000000",
                 "-timeout", "3000000",
                 "-fflags", "nobuffer+discardcorrupt",
                 "-flags", "low_delay",

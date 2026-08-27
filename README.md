@@ -38,17 +38,17 @@ Baixe a versão mais recente diretamente da aba [Releases](https://github.com/on
 ### 🪟 Windows (10 / 11 - 64 bits)
 | Pacote | Tipo | Descrição |
 |---|---|---|
-| [**OnliView_0.1.1_x64-setup.exe**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.1_x64-setup.exe) | **Instalador Oficial (NSIS)** | Assistente completo com atalhos no Desktop/Menu Iniciar, desinstalador e motor FFmpeg embutido |
-| [**OnliView_Windows_Portable_v0.1.1.zip**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_Windows_Portable_v0.1.1.zip) | **Pacote Portátil (ZIP)** | Execução direta sem instalação (inclui `onliview.exe` e binários do motor de vídeo) |
+| [**OnliView_0.1.2_x64-setup.exe**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.2_x64-setup.exe) | **Instalador Oficial (NSIS)** | Assistente completo com atalhos no Desktop/Menu Iniciar, desinstalador e motor FFmpeg embutido |
+| [**OnliView_Windows_Portable_v0.1.2.zip**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_Windows_Portable_v0.1.2.zip) | **Pacote Portátil (ZIP)** | Execução direta sem instalação (inclui `onliview.exe` e binários do motor de vídeo) |
 
 ### 🐧 Linux (Ubuntu / Debian / Fedora / RedHat)
 | Pacote | Tipo | Comando de Instalação |
 |---|---|---|
-| [**OnliView_0.1.1_amd64.deb**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.1_amd64.deb) | Pacote Debian/Ubuntu | `sudo dpkg -i OnliView_0.1.1_amd64.deb` |
+| [**OnliView_0.1.2_amd64.deb**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.2_amd64.deb) | Pacote Debian/Ubuntu | `sudo dpkg -i OnliView_0.1.2_amd64.deb` |
 | [**OnliView_0.1.0_amd64.AppImage**](https://github.com/onlitec/OnliCFTV/releases/download/v0.1.0/OnliView_0.1.0_amd64.AppImage) | Universal Linux (build v0.1.0*) | `chmod +x OnliView_0.1.0_amd64.AppImage && ./OnliView_0.1.0_amd64.AppImage` |
 | [**OnliView-0.1.0-1.x86_64.rpm**](https://github.com/onlitec/OnliCFTV/releases/download/v0.1.0/OnliView-0.1.0-1.x86_64.rpm) | Pacote Fedora/RHEL (build v0.1.0*) | `sudo rpm -i OnliView-0.1.0-1.x86_64.rpm` |
 
-\* AppImage e RPM ainda não foram recompilados com as últimas correções (v0.1.1); use o `.deb` para a versão mais atual no Linux.
+\* AppImage e RPM ainda não foram recompilados com as últimas correções (v0.1.2); use o `.deb` para a versão mais atual no Linux.
 
 ---
 
@@ -59,11 +59,10 @@ Baixe a versão mais recente diretamente da aba [Releases](https://github.com/on
 - **Classificação Multidimensional**: Pontuação de evidências por fabricante, portas e perfil de mídia, separando câmeras reais de falsos positivos (ex: Servidores Linux e Switches de rede).
 - **Detecção de Ativação**: Identifica dispositivos que necessitam de ativação de senha inicial.
 
-### 👁 Device Preview & Miniaturas ao Vivo
-- **Preview Sob Demanda**: Economiza banda e CPU iniciando streams somente quando solicitado.
-- **Autenticação In-Cell**: Solicitação de senha limpa e segura diretamente na célula da tabela.
-- **Controle de Concorrência**: Modo *Preview Automático* configurável com limite de 1 a 6 fluxos concorrentes.
-- **1-Click Quick Viewer**: Clicar na miniatura abre instantaneamente a visualização completa.
+### 👁 Comissionamento em Campo
+- **Credenciais Salvas Automaticamente**: senha usada com sucesso em um dispositivo fica em cache local por IP e é preenchida sozinha da próxima vez.
+- **1-Click Quick Viewer**: botão "Visualizar" na listagem de dispositivos abre instantaneamente a visualização completa.
+- **Colunas Ordenáveis**: clique no cabeçalho (IP, Tipo, Modelo, Status, Confiança) para ordenar a listagem de dispositivos localizados.
 
 ### 🛠 Quick Viewer & Gestão em Campo
 - **Visualização RTSP Low-Delay**: Decodificação assíncrona integrada servida via servidor local MJPEG na porta `18554`.
@@ -89,8 +88,7 @@ Baixe a versão mais recente diretamente da aba [Releases](https://github.com/on
 [ Frontend: React 18 + Tailwind + Vite ]
    │
    ├── [ Contexto de Tema: Light / Dark ]
-   ├── [ Tabela de Comissionamento de Alta Densidade ]
-   ├── [ Célula de Preview / Thumbnails Sob Demanda ]
+   ├── [ Tabela de Comissionamento de Alta Densidade e Ordenável ]
    └── [ Quick Viewer Modal com Live Stream e Ajuste OSD ]
    │
    ▼ IPC (Tauri v2 Commands)
