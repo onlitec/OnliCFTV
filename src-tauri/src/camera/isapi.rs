@@ -11,6 +11,15 @@ use uuid::Uuid;
 
 use crate::discovery::providers::sadp::extract_xml_tag;
 
+/// Extracts the <name> value scoped to <channelNameOverlay>, instead of the first <name> tag
+/// anywhere in the VideoOverlay document (which may belong to an unrelated overlay slot).
+fn extract_channel_name_overlay_value(xml: &str) -> Option<String> {
+    let start = xml.find("<channelNameOverlay")?;
+    let rel_end = xml[start..].find("</channelNameOverlay>")?;
+    let end = start + rel_end + "</channelNameOverlay>".len();
+    extract_xml_tag(&xml[start..end], "name")
+}
+
 fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -350,18 +359,41 @@ impl IsapiClient {
                 let mut updated_ov = current_ov.clone();
                 let mut found_name_tag = true;
 
-                if let Some(start_name) = updated_ov.find("<name>") {
-                    if let Some(end_name) = updated_ov[start_name..].find("</name>") {
-                        let before = &updated_ov[..start_name + 6];
-                        let after = &updated_ov[start_name + end_name..];
-                        updated_ov = format!("{}{}{}", before, escaped_title, after);
+                // The <name> tag must be resolved *inside* <channelNameOverlay>, not just the
+                // first <name> anywhere in the document — VideoOverlay XML commonly has several
+                // overlay slots (date/time, custom text attributes, etc.), some of which also
+                // carry an (often empty) <name> field. Patching the wrong one silently no-ops the
+                // actual on-screen channel name while still returning HTTP 200.
+                if let Some(container_start) = updated_ov.find("<channelNameOverlay") {
+                    if let Some(rel_end) = updated_ov[container_start..].find("</channelNameOverlay>") {
+                        let container_end = container_start + rel_end + "</channelNameOverlay>".len();
+                        let mut container = updated_ov[container_start..container_end].to_string();
+                        let mut patched = true;
+
+                        if let Some(start_name) = container.find("<name>") {
+                            if let Some(end_name) = container[start_name..].find("</name>") {
+                                let before = &container[..start_name + 6];
+                                let after = &container[start_name + end_name..];
+                                container = format!("{}{}{}", before, escaped_title, after);
+                            } else {
+                                patched = false;
+                            }
+                        } else if let Some(idx_self_close) = container.find("<name/>") {
+                            container.replace_range(idx_self_close..idx_self_close + 7, &format!("<name>{}</name>", escaped_title));
+                        } else if let Some(idx_self_close2) = container.find("<name />") {
+                            container.replace_range(idx_self_close2..idx_self_close2 + 8, &format!("<name>{}</name>", escaped_title));
+                        } else {
+                            patched = false;
+                        }
+
+                        if patched {
+                            updated_ov.replace_range(container_start..container_end, &container);
+                        } else {
+                            found_name_tag = false;
+                        }
                     } else {
                         found_name_tag = false;
                     }
-                } else if let Some(idx_self_close) = updated_ov.find("<name/>") {
-                    updated_ov.replace_range(idx_self_close..idx_self_close + 7, &format!("<name>{}</name>", escaped_title));
-                } else if let Some(idx_self_close2) = updated_ov.find("<name />") {
-                    updated_ov.replace_range(idx_self_close2..idx_self_close2 + 8, &format!("<name>{}</name>", escaped_title));
                 } else if let Some(idx_end_ov) = updated_ov.find("</VideoOverlay>") {
                     let channel_ov = format!(
                         "<channelNameOverlay><enabled>true</enabled><positionX>512</positionX><positionY>64</positionY><name>{}</name></channelNameOverlay>",
@@ -374,8 +406,9 @@ impl IsapiClient {
 
                 if !found_name_tag {
                     return Err(format!(
-                        "Não foi possível localizar o campo de nome do overlay no XML retornado pelo dispositivo (canal {})",
-                        channel_id
+                        "Não foi possível localizar o campo de nome do overlay no XML retornado pelo dispositivo (canal {}): {}",
+                        channel_id,
+                        current_ov.chars().take(400).collect::<String>()
                     ));
                 }
 
@@ -397,13 +430,17 @@ impl IsapiClient {
 
                 // Confirm the value was actually applied before reporting success.
                 match self.http_request("GET", &uri_ov, None).await {
-                    Ok((200, verify_body)) => match extract_xml_tag(&verify_body, "name") {
+                    Ok((200, verify_body)) => match extract_channel_name_overlay_value(&verify_body) {
                         Some(applied) if applied == new_title => Ok(()),
                         Some(applied) => Err(format!(
-                            "Dispositivo aceitou a gravação, mas o OSD não foi atualizado (valor atual: '{}')",
-                            applied
+                            "Dispositivo aceitou a gravação, mas o OSD não foi atualizado (valor atual: '{}'). XML retornado: {}",
+                            applied,
+                            verify_body.chars().take(400).collect::<String>()
                         )),
-                        None => Err("OSD gravado, mas não foi possível confirmar o valor aplicado no dispositivo".to_string()),
+                        None => Err(format!(
+                            "OSD gravado, mas não foi possível confirmar o valor aplicado no dispositivo. XML retornado: {}",
+                            verify_body.chars().take(400).collect::<String>()
+                        )),
                     },
                     _ => Err("OSD gravado, mas falha ao verificar aplicação no dispositivo".to_string()),
                 }

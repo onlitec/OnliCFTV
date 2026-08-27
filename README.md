@@ -38,17 +38,17 @@ Baixe a versão mais recente diretamente da aba [Releases](https://github.com/on
 ### 🪟 Windows (10 / 11 - 64 bits)
 | Pacote | Tipo | Descrição |
 |---|---|---|
-| [**OnliView_0.1.2_x64-setup.exe**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.2_x64-setup.exe) | **Instalador Oficial (NSIS)** | Assistente completo com atalhos no Desktop/Menu Iniciar, desinstalador e motor FFmpeg embutido |
-| [**OnliView_Windows_Portable_v0.1.2.zip**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_Windows_Portable_v0.1.2.zip) | **Pacote Portátil (ZIP)** | Execução direta sem instalação (inclui `onliview.exe` e binários do motor de vídeo) |
+| [**OnliView_0.1.3_x64-setup.exe**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.3_x64-setup.exe) | **Instalador Oficial (NSIS)** | Assistente completo com atalhos no Desktop/Menu Iniciar, desinstalador e motor FFmpeg embutido |
+| [**OnliView_Windows_Portable_v0.1.3.zip**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_Windows_Portable_v0.1.3.zip) | **Pacote Portátil (ZIP)** | Execução direta sem instalação (inclui `onliview.exe` e binários do motor de vídeo) |
 
 ### 🐧 Linux (Ubuntu / Debian / Fedora / RedHat)
 | Pacote | Tipo | Comando de Instalação |
 |---|---|---|
-| [**OnliView_0.1.2_amd64.deb**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.2_amd64.deb) | Pacote Debian/Ubuntu | `sudo dpkg -i OnliView_0.1.2_amd64.deb` |
+| [**OnliView_0.1.3_amd64.deb**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.3_amd64.deb) | Pacote Debian/Ubuntu | `sudo dpkg -i OnliView_0.1.3_amd64.deb` |
 | [**OnliView_0.1.0_amd64.AppImage**](https://github.com/onlitec/OnliCFTV/releases/download/v0.1.0/OnliView_0.1.0_amd64.AppImage) | Universal Linux (build v0.1.0*) | `chmod +x OnliView_0.1.0_amd64.AppImage && ./OnliView_0.1.0_amd64.AppImage` |
 | [**OnliView-0.1.0-1.x86_64.rpm**](https://github.com/onlitec/OnliCFTV/releases/download/v0.1.0/OnliView-0.1.0-1.x86_64.rpm) | Pacote Fedora/RHEL (build v0.1.0*) | `sudo rpm -i OnliView-0.1.0-1.x86_64.rpm` |
 
-\* AppImage e RPM ainda não foram recompilados com as últimas correções (v0.1.2); use o `.deb` para a versão mais atual no Linux.
+\* AppImage e RPM ainda não foram recompilados com as últimas correções (v0.1.3); use o `.deb` para a versão mais atual no Linux.
 
 ---
 
