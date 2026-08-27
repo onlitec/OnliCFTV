@@ -38,8 +38,8 @@ Baixe a versão mais recente diretamente da aba [Releases](https://github.com/on
 ### 🪟 Windows (10 / 11 - 64 bits)
 | Pacote | Tipo | Descrição |
 |---|---|---|
-| [**OnliView_0.1.5_x64-setup.exe**](https://github.com/onlitec/OnliCFTV/releases/download/v0.1.5/OnliView_0.1.5_x64-setup.exe) | **Instalador Oficial (NSIS, build v0.1.5)** | Assistente completo com atalhos no Desktop/Menu Iniciar, desinstalador e motor FFmpeg embutido |
-| [**OnliView_Windows_Portable_v0.1.8.zip**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_Windows_Portable_v0.1.8.zip) | **Pacote Portátil (ZIP)** | Execução direta sem instalação (inclui `onliview.exe`, FFmpeg/FFprobe e `WebView2Loader.dll`) — **recomendado até o instalador NSIS ser recompilado** |
+| [**OnliView_0.1.8_x64-setup.exe**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.8_x64-setup.exe) | **Instalador Oficial (NSIS)** | Assistente completo com atalhos no Desktop/Menu Iniciar, desinstalador e motor FFmpeg embutido |
+| [**OnliView_Windows_Portable_v0.1.8.zip**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_Windows_Portable_v0.1.8.zip) | **Pacote Portátil (ZIP)** | Execução direta sem instalação (inclui `onliview.exe`, FFmpeg/FFprobe e `WebView2Loader.dll`) |
 
 ### 🐧 Linux (Ubuntu / Debian / Fedora / RedHat)
 | Pacote | Tipo | Comando de Instalação |
@@ -49,7 +49,6 @@ Baixe a versão mais recente diretamente da aba [Releases](https://github.com/on
 | [**OnliView-0.1.0-1.x86_64.rpm**](https://github.com/onlitec/OnliCFTV/releases/download/v0.1.0/OnliView-0.1.0-1.x86_64.rpm) | Pacote Fedora/RHEL (build v0.1.0*) | `sudo rpm -i OnliView-0.1.0-1.x86_64.rpm` |
 
 \* AppImage e RPM ainda não foram recompilados com as últimas correções; use o `.deb` para a versão mais atual no Linux.
-\*\* O instalador `.exe` (NSIS) não pôde ser recompilado desde a v0.1.5 (bug de empacotamento do `makensis` neste ambiente de build) — use o ZIP portátil acima, que já contém todas as correções.
 
 > ⚠️ **Windows**: no primeiro uso, aprove o aviso do **Firewall do Windows** para o OnliView (nas
 > redes Privada e Pública) — sem isso, respostas de descoberta SADP/ONVIF/SSDP são bloqueadas e
