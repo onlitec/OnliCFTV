@@ -26,6 +26,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
   const [rtspPort, setRtspPort] = useState(554);
   const [streamProfile, setStreamProfile] = useState<'main' | 'sub' | 'custom'>('main');
   const [customRtspUrl, setCustomRtspUrl] = useState('');
+  const [deviceName, setDeviceName] = useState('');
+  const [osd, setOsd] = useState('');
   const [enabled, setEnabled] = useState(true);
 
   const [isTesting, setIsTesting] = useState(false);
@@ -42,6 +44,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
       setRtspPort(cameraToEdit.rtsp_port);
       setStreamProfile((cameraToEdit.stream_profile as any) || 'main');
       setCustomRtspUrl(cameraToEdit.rtsp_url);
+      setDeviceName(cameraToEdit.device_name || '');
+      setOsd(cameraToEdit.osd || '');
       setEnabled(cameraToEdit.enabled);
     } else if (prefillData) {
       setName(prefillData.name || '');
@@ -51,6 +55,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
       setRtspPort(prefillData.rtsp_port || 554);
       setStreamProfile((prefillData.stream_profile as any) || 'main');
       setCustomRtspUrl(prefillData.rtsp_url || '');
+      setDeviceName(prefillData.device_name || '');
+      setOsd(prefillData.osd || '');
       setEnabled(prefillData.enabled ?? true);
     } else {
       setName('');
@@ -60,6 +66,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
       setRtspPort(554);
       setStreamProfile('main');
       setCustomRtspUrl('');
+      setDeviceName('');
+      setOsd('');
       setEnabled(true);
     }
     setTestResult(null);
@@ -90,6 +98,12 @@ export const CameraModal: React.FC<CameraModalProps> = ({
 
       const res = await api.testCameraConnection(input);
       setTestResult(res);
+      if (res.device_name && !deviceName) {
+        setDeviceName(res.device_name);
+      }
+      if (res.osd && !osd) {
+        setOsd(res.osd);
+      }
     } catch (err: any) {
       setTestResult({
         success: false,
@@ -121,6 +135,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
           rtsp_port: Number(rtspPort),
           stream_profile: streamProfile,
           rtsp_url: streamProfile === 'custom' ? customRtspUrl : undefined,
+          device_name: deviceName.trim() || undefined,
+          osd: osd.trim() || undefined,
           enabled,
         });
       } else {
@@ -132,6 +148,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
           rtsp_port: Number(rtspPort),
           stream_profile: streamProfile,
           rtsp_url: streamProfile === 'custom' ? customRtspUrl : undefined,
+          device_name: deviceName.trim() || undefined,
+          osd: osd.trim() || undefined,
           enabled,
         });
       }
@@ -247,6 +265,33 @@ export const CameraModal: React.FC<CameraModalProps> = ({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                Device Name (Nome no Dispositivo)
+              </label>
+              <input
+                type="text"
+                value={deviceName}
+                onChange={(e) => setDeviceName(e.target.value)}
+                placeholder="Ex: CAM-PORTARIA-01 (Captura automática)"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none focus:border-sky-500 placeholder-slate-600 font-sans"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                OSD (Texto Sobreposto no Vídeo)
+              </label>
+              <input
+                type="text"
+                value={osd}
+                onChange={(e) => setOsd(e.target.value)}
+                placeholder="Ex: PORTARIA PRINCIPAL (Captura automática)"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none focus:border-sky-500 placeholder-slate-600 font-mono"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
               Perfil do Stream (Hikvision / Padrão)
@@ -314,12 +359,12 @@ export const CameraModal: React.FC<CameraModalProps> = ({
               {isTesting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
-                  <span>Testando Conexão RTSP...</span>
+                  <span>Testando Conexão e Lendo Metadados...</span>
                 </>
               ) : (
                 <>
                   <PlayCircle className="h-4 w-4 text-sky-400" />
-                  <span>Testar Conexão e Detectar Codec</span>
+                  <span>Testar Conexão e Detectar Device Name / OSD</span>
                 </>
               )}
             </button>
@@ -341,10 +386,18 @@ export const CameraModal: React.FC<CameraModalProps> = ({
                   <span>{testResult.message}</span>
                 </div>
                 {testResult.success && (
-                  <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-emerald-500/20 text-[11px] font-mono">
-                    <div>Codec: <strong className="text-white">{testResult.codec || 'N/A'}</strong></div>
-                    <div>Resolução: <strong className="text-white">{testResult.resolution || 'N/A'}</strong></div>
-                    <div>Latência: <strong className="text-white">{testResult.latency_ms ? `${testResult.latency_ms}ms` : 'N/A'}</strong></div>
+                  <div className="space-y-1.5 mt-2 pt-2 border-t border-emerald-500/20 text-[11px] font-mono">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>Codec: <strong className="text-white">{testResult.codec || 'N/A'}</strong></div>
+                      <div>Resolução: <strong className="text-white">{testResult.resolution || 'N/A'}</strong></div>
+                      <div>Latência: <strong className="text-white">{testResult.latency_ms ? `${testResult.latency_ms}ms` : 'N/A'}</strong></div>
+                    </div>
+                    {(testResult.device_name || testResult.osd) && (
+                      <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-500/10">
+                        <div>Device Name: <strong className="text-white font-sans">{testResult.device_name || 'N/A'}</strong></div>
+                        <div>OSD: <strong className="text-sky-300">{testResult.osd || 'N/A'}</strong></div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

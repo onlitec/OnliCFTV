@@ -261,13 +261,19 @@ fn test_database_crud_and_batch() {
                 name: "Hikvision Portaria".to_string(),
                 host: "172.20.120.67".to_string(),
                 rtsp_port: 554,
+                http_port: Some(80),
                 custom_rtsp_url: None,
+                device_name: Some("CAM-PORTARIA-01".to_string()),
+                osd: Some("PORTARIA".to_string()),
             },
             BatchDeviceItem {
                 name: "Hikvision Dome".to_string(),
                 host: "172.20.120.53".to_string(),
                 rtsp_port: 554,
+                http_port: Some(80),
                 custom_rtsp_url: None,
+                device_name: None,
+                osd: None,
             },
         ],
         username: "admin".to_string(),
@@ -276,6 +282,9 @@ fn test_database_crud_and_batch() {
     }).expect("Batch create failed");
 
     assert_eq!(batch_res.len(), 2);
+    assert_eq!(batch_res[0].device_name, Some("CAM-PORTARIA-01".to_string()));
+    assert_eq!(batch_res[0].osd, Some("PORTARIA".to_string()));
+    assert_eq!(batch_res[1].device_name, None);
     let _ = std::fs::remove_file(db_path);
 }
 

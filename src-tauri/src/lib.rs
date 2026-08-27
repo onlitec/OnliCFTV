@@ -41,12 +41,12 @@ async fn get_camera(id: String, state: State<'_, AppState>) -> Result<Option<Cam
 
 #[tauri::command]
 async fn create_camera(input: CreateCameraInput, state: State<'_, AppState>) -> Result<Camera, String> {
-    state.camera_manager.create_camera(input)
+    state.camera_manager.create_camera(input).await
 }
 
 #[tauri::command]
 async fn create_cameras_batch(input: BatchCreateCamerasInput, state: State<'_, AppState>) -> Result<Vec<Camera>, String> {
-    state.camera_manager.create_cameras_batch(input)
+    state.camera_manager.create_cameras_batch(input).await
 }
 
 #[tauri::command]

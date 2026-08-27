@@ -1,5 +1,7 @@
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true
+  "@tauri-apps/cli": true
+
 onlyBuiltDependencies:
   - esbuild
   - "@tauri-apps/cli"

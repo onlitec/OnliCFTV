@@ -31,6 +31,10 @@ impl Database {
         // so add the column here and ignore the "duplicate column" error when it's already present.
         let _ = conn.execute("ALTER TABLE device_credentials ADD COLUMN mac TEXT", []);
 
+        // Lightweight migration for device_name and osd on cameras table
+        let _ = conn.execute("ALTER TABLE cameras ADD COLUMN device_name TEXT", []);
+        let _ = conn.execute("ALTER TABLE cameras ADD COLUMN osd TEXT", []);
+
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
@@ -39,7 +43,7 @@ impl Database {
     pub fn get_cameras(&self) -> Result<Vec<Camera>> {
         let lock = self.conn.lock().unwrap();
         let mut stmt = lock.prepare(
-            "SELECT id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, created_at, updated_at FROM cameras ORDER BY created_at ASC"
+            "SELECT id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at FROM cameras ORDER BY created_at ASC"
         )?;
 
         let camera_iter = stmt.query_map([], |row| {
@@ -53,8 +57,10 @@ impl Database {
                 rtsp_url: row.get(6)?,
                 stream_profile: row.get(7)?,
                 enabled: row.get::<_, i32>(8)? != 0,
-                created_at: row.get(9)?,
-                updated_at: row.get(10)?,
+                device_name: row.get(9)?,
+                osd: row.get(10)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
             })
         })?;
 
@@ -68,7 +74,7 @@ impl Database {
     pub fn get_camera_by_id(&self, id: &str) -> Result<Option<Camera>> {
         let lock = self.conn.lock().unwrap();
         let mut stmt = lock.prepare(
-            "SELECT id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, created_at, updated_at FROM cameras WHERE id = ?1"
+            "SELECT id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at FROM cameras WHERE id = ?1"
         )?;
 
         let mut rows = stmt.query(params![id])?;
@@ -83,8 +89,10 @@ impl Database {
                 rtsp_url: row.get(6)?,
                 stream_profile: row.get(7)?,
                 enabled: row.get::<_, i32>(8)? != 0,
-                created_at: row.get(9)?,
-                updated_at: row.get(10)?,
+                device_name: row.get(9)?,
+                osd: row.get(10)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
             }))
         } else {
             Ok(None)
@@ -121,8 +129,8 @@ impl Database {
 
         let lock = self.conn.lock().unwrap();
         lock.execute(
-            "INSERT INTO cameras (id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, created_at, updated_at) 
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            "INSERT INTO cameras (id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at) 
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             params![
                 id,
                 input.name,
@@ -133,6 +141,8 @@ impl Database {
                 rtsp_url,
                 stream_profile,
                 if enabled { 1 } else { 0 },
+                input.device_name,
+                input.osd,
                 now,
                 now
             ],
@@ -148,6 +158,8 @@ impl Database {
             rtsp_url,
             stream_profile,
             enabled,
+            device_name: input.device_name,
+            osd: input.osd,
             created_at: now.clone(),
             updated_at: now,
         })
@@ -178,8 +190,8 @@ impl Database {
             };
 
             tx.execute(
-                "INSERT INTO cameras (id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                "INSERT INTO cameras (id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
                 params![
                     id,
                     item.name,
@@ -190,6 +202,8 @@ impl Database {
                     rtsp_url,
                     stream_profile,
                     1,
+                    item.device_name,
+                    item.osd,
                     now,
                     now
                 ],
@@ -205,6 +219,8 @@ impl Database {
                 rtsp_url,
                 stream_profile: stream_profile.clone(),
                 enabled: true,
+                device_name: item.device_name,
+                osd: item.osd,
                 created_at: now.clone(),
                 updated_at: now.clone(),
             });
@@ -226,6 +242,8 @@ impl Database {
         let rtsp_port = input.rtsp_port.unwrap_or(existing.rtsp_port);
         let stream_profile = input.stream_profile.unwrap_or(existing.stream_profile);
         let enabled = input.enabled.unwrap_or(existing.enabled);
+        let device_name = input.device_name.or(existing.device_name);
+        let osd = input.osd.or(existing.osd);
 
         let password_encrypted = if let Some(pass) = input.password {
             if !pass.is_empty() {
@@ -249,7 +267,7 @@ impl Database {
 
         let lock = self.conn.lock().unwrap();
         lock.execute(
-            "UPDATE cameras SET name = ?1, host = ?2, username = ?3, password_encrypted = ?4, rtsp_port = ?5, rtsp_url = ?6, stream_profile = ?7, enabled = ?8, updated_at = ?9 WHERE id = ?10",
+            "UPDATE cameras SET name = ?1, host = ?2, username = ?3, password_encrypted = ?4, rtsp_port = ?5, rtsp_url = ?6, stream_profile = ?7, enabled = ?8, device_name = ?9, osd = ?10, updated_at = ?11 WHERE id = ?12",
             params![
                 name,
                 host,
@@ -259,6 +277,8 @@ impl Database {
                 rtsp_url,
                 stream_profile,
                 if enabled { 1 } else { 0 },
+                device_name,
+                osd,
                 now,
                 input.id
             ],
@@ -274,6 +294,8 @@ impl Database {
             rtsp_url,
             stream_profile,
             enabled,
+            device_name,
+            osd,
             created_at: existing.created_at,
             updated_at: now,
         })

@@ -27,6 +27,38 @@ impl CameraManager {
         NetworkInterfaceManager::get_interfaces()
     }
 
+    pub async fn fetch_device_metadata(
+        host: &str,
+        http_port: u16,
+        username: &str,
+        password: &str,
+    ) -> (Option<String>, Option<String>) {
+        let client = IsapiClient::new(host, http_port, username, password);
+        let dev_name = match tokio::time::timeout(std::time::Duration::from_millis(2500), client.get_device_info()).await {
+            Ok(Ok(info)) => {
+                let n = info.device_name.trim();
+                if !n.is_empty() {
+                    Some(n.to_string())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        let osd = match tokio::time::timeout(std::time::Duration::from_millis(2500), client.get_osd_title(1)).await {
+            Ok(Ok(title)) => {
+                let t = title.trim();
+                if !t.is_empty() {
+                    Some(t.to_string())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        (dev_name, osd)
+    }
+
     pub fn get_cameras(&self) -> Result<Vec<Camera>, String> {
         self.db.get_cameras().map_err(|e| e.to_string())
     }
@@ -35,14 +67,61 @@ impl CameraManager {
         self.db.get_camera_by_id(id).map_err(|e| e.to_string())
     }
 
-    pub fn create_camera(&self, input: CreateCameraInput) -> Result<Camera, String> {
+    pub async fn create_camera(&self, mut input: CreateCameraInput) -> Result<Camera, String> {
+        let http_port = input.http_port.unwrap_or(80);
+        let username = input.username.trim();
+        let password = input.password.as_deref().unwrap_or_default();
+
+        // If device_name or osd is not explicitly provided, attempt to capture them from the device
+        if (input.device_name.is_none() || input.osd.is_none()) && !input.host.trim().is_empty() {
+            let (dev_name, osd) = Self::fetch_device_metadata(input.host.trim(), http_port, username, password).await;
+            if input.device_name.is_none() {
+                input.device_name = dev_name;
+            }
+            if input.osd.is_none() {
+                input.osd = osd;
+            }
+        }
+
         let cam = self.db.create_camera(input)?;
-        self.log_store.log("INFO", "CameraManager", &format!("Câmera cadastrada: {} ({})", cam.name, cam.host));
+        self.log_store.log("INFO", "CameraManager", &format!("Câmera cadastrada: {} ({}) [DeviceName: {:?}, OSD: {:?}]", cam.name, cam.host, cam.device_name, cam.osd));
         Ok(cam)
     }
 
-    pub fn create_cameras_batch(&self, input: BatchCreateCamerasInput) -> Result<Vec<Camera>, String> {
+    pub async fn create_cameras_batch(&self, mut input: BatchCreateCamerasInput) -> Result<Vec<Camera>, String> {
         let count = input.devices.len();
+        let username = input.username.trim().to_string();
+        let password = input.password.clone().unwrap_or_default();
+
+        // Parallel metadata fetch for each device in batch with timeout
+        let mut set = tokio::task::JoinSet::new();
+        for (i, dev) in input.devices.iter().enumerate() {
+            let host = dev.host.clone();
+            let http_port = dev.http_port.unwrap_or(80);
+            let u = username.clone();
+            let p = password.clone();
+            let existing_dev_name = dev.device_name.clone();
+            let existing_osd = dev.osd.clone();
+
+            set.spawn(async move {
+                if existing_dev_name.is_some() && existing_osd.is_some() {
+                    (i, existing_dev_name, existing_osd)
+                } else {
+                    let (dev_name, osd) = Self::fetch_device_metadata(&host, http_port, &u, &p).await;
+                    (i, existing_dev_name.or(dev_name), existing_osd.or(osd))
+                }
+            });
+        }
+
+        while let Some(res) = set.join_next().await {
+            if let Ok((i, dev_name, osd)) = res {
+                if let Some(dev) = input.devices.get_mut(i) {
+                    dev.device_name = dev_name;
+                    dev.osd = osd;
+                }
+            }
+        }
+
         let cams = self.db.create_cameras_batch(input)?;
         self.log_store.log("INFO", "CameraManager", &format!("Adicionadas {} câmeras em lote com sucesso", count));
         Ok(cams)
@@ -110,14 +189,23 @@ impl CameraManager {
     pub async fn test_connection(&self, input: CreateCameraInput) -> CameraConnectionTestResult {
         let host = input.host.trim();
         let port = input.rtsp_port.unwrap_or(554);
+        let http_port = input.http_port.unwrap_or(80);
         let user = input.username.trim();
-        let pass = input.password.unwrap_or_default();
-        let raw_url = input.rtsp_url.unwrap_or_default();
+        let pass = input.password.as_deref().unwrap_or_default();
+        let raw_url = input.rtsp_url.as_deref().unwrap_or_default();
 
-        let full_url = build_authenticated_rtsp_url(host, port, user, &pass, &raw_url);
+        let full_url = build_authenticated_rtsp_url(host, port, user, pass, raw_url);
         self.log_store.log("INFO", "CameraManager", &format!("Testando conexão com {}", full_url));
         
-        probe_rtsp_stream(&full_url).await
+        let mut result = probe_rtsp_stream(&full_url).await;
+
+        if !host.is_empty() {
+            let (dev_name, osd) = Self::fetch_device_metadata(host, http_port, user, pass).await;
+            result.device_name = dev_name;
+            result.osd = osd;
+        }
+
+        result
     }
 
     pub async fn test_existing_camera_connection(&self, camera_id: &str) -> Result<CameraConnectionTestResult, String> {
@@ -131,7 +219,10 @@ impl CameraManager {
         let full_url = build_authenticated_rtsp_url(&cam.host, cam.rtsp_port, &cam.username, &password, &cam.rtsp_url);
         self.log_store.log("INFO", "CameraManager", &format!("Testando conexão para câmera cadastrada {}", cam.name));
         
-        Ok(probe_rtsp_stream(&full_url).await)
+        let mut result = probe_rtsp_stream(&full_url).await;
+        result.device_name = cam.device_name;
+        result.osd = cam.osd;
+        Ok(result)
     }
 
     pub async fn start_camera_stream(&self, camera_id: &str) -> Result<(), String> {
@@ -224,6 +315,8 @@ impl CameraManager {
                 fps: Some(25.0),
                 bitrate: None,
                 latency_ms: Some(12),
+                device_name: None,
+                osd: None,
             }
         });
 
@@ -266,6 +359,26 @@ impl CameraManager {
         let isapi_client = IsapiClient::new(host, http_port, username, &password);
         match isapi_client.set_device_name(new_name).await {
             Ok(_) => {
+                if let Ok(cams) = self.db.get_cameras() {
+                    for cam in cams {
+                        if cam.host == host {
+                            let _ = self.db.update_camera(UpdateCameraInput {
+                                id: cam.id,
+                                name: None,
+                                host: None,
+                                username: None,
+                                password: None,
+                                rtsp_port: None,
+                                http_port: None,
+                                rtsp_url: None,
+                                stream_profile: None,
+                                enabled: None,
+                                device_name: Some(new_name.to_string()),
+                                osd: None,
+                            });
+                        }
+                    }
+                }
                 self.log_store.log("INFO", "Audit", &format!("Operação CHANGE_DEVICE_NAME realizada com sucesso no host {}", host));
                 Ok(())
             }
@@ -289,6 +402,26 @@ impl CameraManager {
         let isapi_client = IsapiClient::new(host, http_port, username, &password);
         match isapi_client.set_osd_title(channel_id, new_osd).await {
             Ok(_) => {
+                if let Ok(cams) = self.db.get_cameras() {
+                    for cam in cams {
+                        if cam.host == host {
+                            let _ = self.db.update_camera(UpdateCameraInput {
+                                id: cam.id,
+                                name: None,
+                                host: None,
+                                username: None,
+                                password: None,
+                                rtsp_port: None,
+                                http_port: None,
+                                rtsp_url: None,
+                                stream_profile: None,
+                                enabled: None,
+                                device_name: None,
+                                osd: Some(new_osd.to_string()),
+                            });
+                        }
+                    }
+                }
                 self.log_store.log("INFO", "Audit", &format!("Operação CHANGE_OSD realizada com sucesso no host {}", host));
                 Ok(())
             }

@@ -122,6 +122,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         cam.name.toLowerCase().includes(query) ||
         cam.host.toLowerCase().includes(query) ||
         cam.username.toLowerCase().includes(query) ||
+        (cam.device_name && cam.device_name.toLowerCase().includes(query)) ||
+        (cam.osd && cam.osd.toLowerCase().includes(query)) ||
         cam.rtsp_url.toLowerCase().includes(query);
 
       const status = streamStatuses[cam.id];
@@ -393,7 +395,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                   </th>
                   <th className="px-2.5 py-2.5 w-10 text-center text-slate-400 dark:text-slate-500">Nº</th>
                   <th className="px-3 py-2.5 w-24">Status</th>
-                  <th className="px-3 py-2.5">Nome do Dispositivo</th>
+                  <th className="px-3 py-2.5">Nome de Identificação</th>
+                  <th className="px-3 py-2.5">Device Name</th>
+                  <th className="px-3 py-2.5">OSD</th>
                   <th className="px-3 py-2.5">Endereço IP & Porta</th>
                   <th className="px-3 py-2.5">Perfil</th>
                   <th className="px-3 py-2.5">Stream URI</th>
@@ -451,7 +455,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                         )}
                       </td>
 
-                      {/* Nome */}
+                      {/* Nome de Identificação */}
                       <td className="px-3 py-2 font-sans font-bold text-slate-800 dark:text-slate-200">
                         <div
                           onClick={() => onOpenLiveCamera(cam.id)}
@@ -460,6 +464,32 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                         >
                           {cam.name}
                         </div>
+                      </td>
+
+                      {/* Device Name */}
+                      <td className="px-3 py-2 font-sans">
+                        {cam.device_name ? (
+                          <span className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                            {cam.device_name}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-amber-500/80 dark:text-amber-400/80 italic">
+                            Não identificado
+                          </span>
+                        )}
+                      </td>
+
+                      {/* OSD */}
+                      <td className="px-3 py-2">
+                        {cam.osd ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30">
+                            {cam.osd}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 italic">
+                            Sem OSD
+                          </span>
+                        )}
                       </td>
 
                       {/* IP & Porta */}
@@ -640,6 +670,22 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                           Inativa
                         </span>
                       )}
+                    </div>
+
+                    {/* Device Name and OSD Metadata */}
+                    <div className="space-y-1 text-xs bg-slate-50 dark:bg-slate-950/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800/60 font-mono mb-3">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-slate-500">Device Name:</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[140px] text-right font-sans" title={cam.device_name || 'Não identificado'}>
+                          {cam.device_name || <span className="text-amber-500/80 italic font-mono text-[10px]">Não identificado</span>}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-slate-500">OSD:</span>
+                        <span className="font-bold text-sky-600 dark:text-sky-400 truncate max-w-[140px] text-right font-mono" title={cam.osd || 'Sem OSD'}>
+                          {cam.osd || <span className="text-slate-400 dark:text-slate-500 italic text-[10px]">Sem OSD</span>}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="mb-3">

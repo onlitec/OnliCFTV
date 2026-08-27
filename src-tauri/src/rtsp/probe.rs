@@ -77,6 +77,8 @@ pub async fn probe_rtsp_stream(full_rtsp_url: &str) -> CameraConnectionTestResul
                         fps,
                         bitrate,
                         latency_ms: Some(latency),
+                        device_name: None,
+                        osd: None,
                     }
                 }
                 Err(e) => CameraConnectionTestResult {
@@ -87,6 +89,8 @@ pub async fn probe_rtsp_stream(full_rtsp_url: &str) -> CameraConnectionTestResul
                     fps: None,
                     bitrate: None,
                     latency_ms: Some(latency),
+                    device_name: None,
+                    osd: None,
                 }
             }
         }
@@ -113,6 +117,8 @@ pub async fn probe_rtsp_stream(full_rtsp_url: &str) -> CameraConnectionTestResul
                 fps: None,
                 bitrate: None,
                 latency_ms: Some(latency),
+                device_name: None,
+                osd: None,
             }
         }
         Err(e) => CameraConnectionTestResult {
@@ -123,6 +129,8 @@ pub async fn probe_rtsp_stream(full_rtsp_url: &str) -> CameraConnectionTestResul
             fps: None,
             bitrate: None,
             latency_ms: Some(latency),
+            device_name: None,
+            osd: None,
         }
     }
 }

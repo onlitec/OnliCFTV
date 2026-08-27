@@ -202,6 +202,18 @@ export const CameraList: React.FC<CameraListProps> = ({
 
                   {/* RTSP Profile details */}
                   <div className="space-y-1.5 text-xs text-slate-400 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/60 font-mono mb-3">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-500">Device Name: </span>
+                      <span className="text-slate-200 font-semibold truncate max-w-[140px]" title={cam.device_name || 'Não identificado'}>
+                        {cam.device_name || <span className="text-amber-400/80 italic text-[10px]">Não identificado</span>}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-slate-500">OSD: </span>
+                      <span className="text-sky-400 font-bold truncate max-w-[140px]" title={cam.osd || 'Sem OSD'}>
+                        {cam.osd || <span className="text-slate-500 italic text-[10px]">Sem OSD</span>}
+                      </span>
+                    </div>
                     <div className="truncate text-[11px]" title={cam.rtsp_url}>
                       <span className="text-slate-500">URI: </span>
                       <span className="text-slate-300">{cam.rtsp_url}</span>

@@ -72,6 +72,8 @@ export interface Camera {
   rtsp_url: string;
   stream_profile: string; // 'main' | 'sub' | 'custom'
   enabled: boolean;
+  device_name?: string | null;
+  osd?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -82,9 +84,12 @@ export interface CreateCameraInput {
   username: string;
   password?: string;
   rtsp_port?: number;
+  http_port?: number;
   rtsp_url?: string;
   stream_profile?: string;
   enabled?: boolean;
+  device_name?: string | null;
+  osd?: string | null;
 }
 
 export interface UpdateCameraInput {
@@ -94,16 +99,22 @@ export interface UpdateCameraInput {
   username?: string;
   password?: string;
   rtsp_port?: number;
+  http_port?: number;
   rtsp_url?: string;
   stream_profile?: string;
   enabled?: boolean;
+  device_name?: string | null;
+  osd?: string | null;
 }
 
 export interface BatchDeviceItem {
   name: string;
   host: string;
   rtsp_port: number;
+  http_port?: number;
   custom_rtsp_url?: string;
+  device_name?: string | null;
+  osd?: string | null;
 }
 
 export interface BatchCreateCamerasInput {
@@ -121,6 +132,8 @@ export interface CameraConnectionTestResult {
   fps?: number;
   bitrate?: string;
   latency_ms?: number;
+  device_name?: string | null;
+  osd?: string | null;
 }
 
 export interface CameraStreamStatus {

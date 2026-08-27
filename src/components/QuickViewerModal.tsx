@@ -649,6 +649,9 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
                               username,
                               password,
                               rtsp_port: session.rtsp_port,
+                              http_port: session.http_port,
+                              device_name: session.device_name,
+                              osd: session.osd_text,
                               stream_profile: 'main',
                             });
                           }}

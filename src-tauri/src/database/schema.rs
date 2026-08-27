@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS cameras (
     rtsp_url TEXT NOT NULL,
     stream_profile TEXT NOT NULL DEFAULT 'main',
     enabled INTEGER NOT NULL DEFAULT 1,
+    device_name TEXT,
+    osd TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );

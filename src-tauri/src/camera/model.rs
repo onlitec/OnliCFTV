@@ -14,6 +14,8 @@ pub struct Camera {
     pub rtsp_url: String,
     pub stream_profile: String, // "main" (101), "sub" (102), "custom"
     pub enabled: bool,
+    pub device_name: Option<String>,
+    pub osd: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -25,9 +27,12 @@ pub struct CreateCameraInput {
     pub username: String,
     pub password: Option<String>,
     pub rtsp_port: Option<u16>,
+    pub http_port: Option<u16>,
     pub rtsp_url: Option<String>,
     pub stream_profile: Option<String>,
     pub enabled: Option<bool>,
+    pub device_name: Option<String>,
+    pub osd: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,9 +43,12 @@ pub struct UpdateCameraInput {
     pub username: Option<String>,
     pub password: Option<String>,
     pub rtsp_port: Option<u16>,
+    pub http_port: Option<u16>,
     pub rtsp_url: Option<String>,
     pub stream_profile: Option<String>,
     pub enabled: Option<bool>,
+    pub device_name: Option<String>,
+    pub osd: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,6 +60,8 @@ pub struct CameraConnectionTestResult {
     pub fps: Option<f32>,
     pub bitrate: Option<String>,
     pub latency_ms: Option<u64>,
+    pub device_name: Option<String>,
+    pub osd: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,7 +69,10 @@ pub struct BatchDeviceItem {
     pub name: String,
     pub host: String,
     pub rtsp_port: u16,
+    pub http_port: Option<u16>,
     pub custom_rtsp_url: Option<String>,
+    pub device_name: Option<String>,
+    pub osd: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

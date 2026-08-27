@@ -293,6 +293,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
           name: d.name,
           host: d.ip,
           rtsp_port: d.rtsp_port || 554,
+          http_port: d.http_port || 80,
         })),
         username: batchUsername.trim() || 'admin',
         password: batchPassword || undefined,
@@ -784,6 +785,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                                   host: dev.ip,
                                   username: 'admin',
                                   rtsp_port: dev.rtsp_port || 554,
+                                  http_port: dev.http_port || 80,
                                   stream_profile: 'main',
                                 });
                               }}

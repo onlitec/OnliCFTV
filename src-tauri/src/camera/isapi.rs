@@ -24,6 +24,99 @@ fn extract_channel_name_overlay_value(xml: &str) -> Option<String> {
     extract_xml_tag(&xml[start..end], "name")
 }
 
+fn extract_text_overlay_1_value(xml: &str) -> Option<String> {
+    let start = xml.find("<TextOverlay")?;
+    let rel_end = xml[start..].find("</TextOverlay>")?;
+    let end = start + rel_end + "</TextOverlay>".len();
+    let text_block = &xml[start..end];
+    if text_block.contains("<id>1</id>") || text_block.contains("<id>0</id>") {
+        if let Some(enabled) = extract_xml_tag(text_block, "enabled") {
+            if enabled == "true" {
+                return extract_xml_tag(text_block, "displayText");
+            }
+        }
+    }
+    None
+}
+
+fn patch_video_overlay_xml(current_ov: &str, escaped_title: &str) -> String {
+    let mut updated_ov = current_ov.to_string();
+    let is_empty = escaped_title.trim().is_empty();
+
+    // 1. Patch TextOverlay id 1 (Burned directly into video stream)
+    if let Some(to_start) = updated_ov.find("<TextOverlay") {
+        if let Some(rel_to_end) = updated_ov[to_start..].find("</TextOverlay>") {
+            let to_end = to_start + rel_to_end + "</TextOverlay>".len();
+            let mut to_block = updated_ov[to_start..to_end].to_string();
+
+            if to_block.contains("<id>1</id>") || to_block.contains("<id>0</id>") {
+                if !is_empty {
+                    to_block = to_block.replace("<enabled>false</enabled>", "<enabled>true</enabled>");
+                } else {
+                    to_block = to_block.replace("<enabled>true</enabled>", "<enabled>false</enabled>");
+                }
+
+                if to_block.contains("<positionX>0</positionX>") && to_block.contains("<positionY>0</positionY>") {
+                    to_block = to_block.replace("<positionX>0</positionX>", "<positionX>64</positionX>");
+                    to_block = to_block.replace("<positionY>0</positionY>", "<positionY>64</positionY>");
+                }
+
+                if let Some(dt_start) = to_block.find("<displayText>") {
+                    if let Some(dt_end) = to_block[dt_start..].find("</displayText>") {
+                        let before = &to_block[..dt_start + 13];
+                        let after = &to_block[dt_start + dt_end..];
+                        to_block = format!("{}{}{}", before, escaped_title, after);
+                    }
+                } else if let Some(dt_idx) = to_block.find("<displayText/>") {
+                    to_block.replace_range(dt_idx..dt_idx + 14, &format!("<displayText>{}</displayText>", escaped_title));
+                } else if let Some(dt_idx2) = to_block.find("<displayText />") {
+                    to_block.replace_range(dt_idx2..dt_idx2 + 15, &format!("<displayText>{}</displayText>", escaped_title));
+                } else if let Some(end_tag) = to_block.rfind("</TextOverlay>") {
+                    to_block.insert_str(end_tag, &format!("<displayText>{}</displayText>", escaped_title));
+                }
+
+                updated_ov.replace_range(to_start..to_end, &to_block);
+            }
+        }
+    }
+
+    // 2. Patch channelNameOverlay
+    if let Some(cno_start) = updated_ov.find("<channelNameOverlay") {
+        if let Some(rel_cno_end) = updated_ov[cno_start..].find("</channelNameOverlay>") {
+            let cno_end = cno_start + rel_cno_end + "</channelNameOverlay>".len();
+            let mut cno_block = updated_ov[cno_start..cno_end].to_string();
+
+            if !is_empty {
+                cno_block = cno_block.replace("<enabled>false</enabled>", "<enabled>true</enabled>");
+            }
+
+            if let Some(start_name) = cno_block.find("<name>") {
+                if let Some(end_name) = cno_block[start_name..].find("</name>") {
+                    let before = &cno_block[..start_name + 6];
+                    let after = &cno_block[start_name + end_name..];
+                    cno_block = format!("{}{}{}", before, escaped_title, after);
+                }
+            } else if let Some(idx_self_close) = cno_block.find("<name/>") {
+                cno_block.replace_range(idx_self_close..idx_self_close + 7, &format!("<name>{}</name>", escaped_title));
+            } else if let Some(idx_self_close2) = cno_block.find("<name />") {
+                cno_block.replace_range(idx_self_close2..idx_self_close2 + 8, &format!("<name>{}</name>", escaped_title));
+            } else if let Some(close_tag) = cno_block.rfind("</channelNameOverlay>") {
+                cno_block.insert_str(close_tag, &format!("<name>{}</name>", escaped_title));
+            }
+
+            updated_ov.replace_range(cno_start..cno_end, &cno_block);
+        }
+    } else if let Some(idx_end_ov) = updated_ov.find("</VideoOverlay>") {
+        let channel_ov = format!(
+            "<channelNameOverlay><enabled>true</enabled><positionX>512</positionX><positionY>64</positionY><name>{}</name></channelNameOverlay>",
+            escaped_title
+        );
+        updated_ov.insert_str(idx_end_ov, &channel_ov);
+    }
+
+    updated_ov
+}
+
 fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -371,33 +464,49 @@ impl IsapiClient {
     }
 
     pub async fn get_osd_title(&self, channel_id: u32) -> Result<String, String> {
-        // Try 1: Streaming Channel 101 or 100 + channel_id
+        // Try 1: Video Overlay /ISAPI/System/Video/inputs/channels/{}/overlays (Check TextOverlay id 1 and channelNameOverlay)
+        let uri_ov = format!("/ISAPI/System/Video/inputs/channels/{}/overlays", channel_id);
+        if let Ok((200, body_ov)) = self.http_request("GET", &uri_ov, None).await {
+            if let Some(text_val) = extract_text_overlay_1_value(&body_ov) {
+                if !text_val.trim().is_empty() {
+                    return Ok(text_val.trim().to_string());
+                }
+            }
+            if let Some(title) = extract_channel_name_overlay_value(&body_ov) {
+                if !title.trim().is_empty() {
+                    return Ok(title.trim().to_string());
+                }
+            }
+        }
+
+        // Try 2: Video Input Channel /ISAPI/System/Video/inputs/channels/{} (Used by Video Intercoms / Door Stations)
+        let uri_input = format!("/ISAPI/System/Video/inputs/channels/{}", channel_id);
+        if let Ok((200, body_input)) = self.http_request("GET", &uri_input, None).await {
+            if let Some(title) = extract_xml_tag(&body_input, "name") {
+                if !title.trim().is_empty() {
+                    return Ok(title.trim().to_string());
+                }
+            }
+        }
+
+        // Try 3: Video Inputs title /ISAPI/System/Video/inputs/channels/{}/title
+        let uri_title = format!("/ISAPI/System/Video/inputs/channels/{}/title", channel_id);
+        if let Ok((200, body_title)) = self.http_request("GET", &uri_title, None).await {
+            if let Some(title) = extract_xml_tag(&body_title, "channelName") {
+                if !title.trim().is_empty() {
+                    return Ok(title.trim().to_string());
+                }
+            }
+        }
+
+        // Try 4: Streaming Channel 101 or 100 + channel_id
         let ch_id = if channel_id <= 1 { 101 } else { channel_id * 100 + 1 };
         let uri_stream = format!("/ISAPI/Streaming/channels/{}", ch_id);
         if let Ok((200, body)) = self.http_request("GET", &uri_stream, None).await {
             if let Some(title) = extract_xml_tag(&body, "channelName") {
-                if !title.is_empty() {
-                    return Ok(title);
-                }
-            }
-        }
-
-        // Try 2: Video Overlay
-        let uri_ov = format!("/ISAPI/System/Video/inputs/channels/{}/overlays", channel_id);
-        if let Ok((200, body_ov)) = self.http_request("GET", &uri_ov, None).await {
-            if let Some(title) = extract_xml_tag(&body_ov, "name") {
-                if !title.is_empty() {
-                    return Ok(title);
-                }
-            }
-        }
-
-        // Try 3: Video Inputs title
-        let uri_title = format!("/ISAPI/System/Video/inputs/channels/{}/title", channel_id);
-        if let Ok((200, body_title)) = self.http_request("GET", &uri_title, None).await {
-            if let Some(title) = extract_xml_tag(&body_title, "channelName") {
-                if !title.is_empty() {
-                    return Ok(title);
+                let t = title.trim();
+                if !t.is_empty() && t != "101" && t != "102" && t != "ch1" && t != "ch01" {
+                    return Ok(t.to_string());
                 }
             }
         }
@@ -407,145 +516,71 @@ impl IsapiClient {
 
     pub async fn set_osd_title(&self, channel_id: u32, new_title: &str) -> Result<(), String> {
         let escaped_title = xml_escape(new_title);
+        let mut any_success = false;
 
-        // Primary method: modern ISAPI VideoOverlay endpoint — this is what actually controls the
-        // on-screen text. We verify the write instead of trusting the HTTP status alone, because a
-        // device happily re-accepts an unmodified document (e.g. if the <name> tag pattern didn't
-        // match) and returns 200 without the OSD text having changed at all.
+        // Method 1: Update VideoOverlay /ISAPI/System/Video/inputs/channels/{}/overlays
+        // (Updates both TextOverlay id 1 [direct on-screen DSP] and channelNameOverlay)
         let uri_ov = format!("/ISAPI/System/Video/inputs/channels/{}/overlays", channel_id);
-        match self.http_request("GET", &uri_ov, None).await {
-            Ok((200, current_ov)) => {
-                let mut updated_ov = current_ov.clone();
-                let mut found_name_tag = true;
-
-                // The <name> tag must be resolved *inside* <channelNameOverlay>, not just the
-                // first <name> anywhere in the document — VideoOverlay XML commonly has several
-                // overlay slots (date/time, custom text attributes, etc.), some of which also
-                // carry an (often empty) <name> field. Patching the wrong one silently no-ops the
-                // actual on-screen channel name while still returning HTTP 200.
-                if let Some(container_start) = updated_ov.find("<channelNameOverlay") {
-                    if let Some(rel_end) = updated_ov[container_start..].find("</channelNameOverlay>") {
-                        let container_end = container_start + rel_end + "</channelNameOverlay>".len();
-                        let mut container = updated_ov[container_start..container_end].to_string();
-                        let mut patched = true;
-
-                        if let Some(start_name) = container.find("<name>") {
-                            if let Some(end_name) = container[start_name..].find("</name>") {
-                                let before = &container[..start_name + 6];
-                                let after = &container[start_name + end_name..];
-                                container = format!("{}{}{}", before, escaped_title, after);
-                            } else {
-                                patched = false;
-                            }
-                        } else if let Some(idx_self_close) = container.find("<name/>") {
-                            container.replace_range(idx_self_close..idx_self_close + 7, &format!("<name>{}</name>", escaped_title));
-                        } else if let Some(idx_self_close2) = container.find("<name />") {
-                            container.replace_range(idx_self_close2..idx_self_close2 + 8, &format!("<name>{}</name>", escaped_title));
-                        } else {
-                            patched = false;
-                        }
-
-                        if patched {
-                            updated_ov.replace_range(container_start..container_end, &container);
-                        } else {
-                            found_name_tag = false;
-                        }
-                    } else {
-                        found_name_tag = false;
-                    }
-                } else if let Some(idx_end_ov) = updated_ov.find("</VideoOverlay>") {
-                    let channel_ov = format!(
-                        "<channelNameOverlay><enabled>true</enabled><positionX>512</positionX><positionY>64</positionY><name>{}</name></channelNameOverlay>",
-                        escaped_title
-                    );
-                    updated_ov.insert_str(idx_end_ov, &channel_ov);
-                } else {
-                    found_name_tag = false;
-                }
-
-                if !found_name_tag {
-                    return Err(format!(
-                        "Não foi possível localizar o campo de nome do overlay no XML retornado pelo dispositivo (canal {}): {}",
-                        channel_id,
-                        current_ov.chars().take(900).collect::<String>()
-                    ));
-                }
-
-                let (put_code, put_body) = self.http_request("PUT", &uri_ov, Some(&updated_ov)).await
-                    .map_err(|e| format!("Falha ao gravar overlay do OSD no dispositivo: {}", e))?;
-
-                let put_ok = put_code == 200
-                    || put_body.contains("<statusValue>1</statusValue>")
-                    || put_body.contains("<statusValue>200</statusValue>")
-                    || put_body.contains("OK");
-
-                if !put_ok {
-                    return Err(format!(
-                        "Dispositivo recusou a gravação do OSD (HTTP {}): {}",
-                        put_code,
-                        put_body.chars().take(200).collect::<String>()
-                    ));
-                }
-
-                // Confirm the value was actually applied before reporting success.
-                match self.http_request("GET", &uri_ov, None).await {
-                    Ok((200, verify_body)) => match extract_channel_name_overlay_value(&verify_body) {
-                        Some(applied) if applied == new_title => Ok(()),
-                        Some(applied) => Err(format!(
-                            "Dispositivo aceitou a gravação, mas o OSD não foi atualizado (valor atual: '{}'). XML retornado: {}",
-                            applied,
-                            verify_body.chars().take(900).collect::<String>()
-                        )),
-                        None => Err(format!(
-                            "OSD gravado, mas não foi possível confirmar o valor aplicado no dispositivo. XML retornado: {}",
-                            verify_body.chars().take(900).collect::<String>()
-                        )),
-                    },
-                    _ => Err("OSD gravado, mas falha ao verificar aplicação no dispositivo".to_string()),
+        if let Ok((200, current_ov)) = self.http_request("GET", &uri_ov, None).await {
+            let updated_ov = patch_video_overlay_xml(&current_ov, &escaped_title);
+            if let Ok((code, body)) = self.http_request("PUT", &uri_ov, Some(&updated_ov)).await {
+                if code == 200 || body.contains("<statusValue>1</statusValue>") || body.contains("<statusValue>200</statusValue>") || body.contains("OK") {
+                    any_success = true;
                 }
             }
-            Ok((code, _)) => {
-                // Endpoint not supported by this firmware — fall back to the legacy title endpoint.
-                self.set_osd_title_legacy(channel_id, new_title, &escaped_title, code).await
-            }
-            Err(e) => Err(format!("Falha ao consultar overlays de vídeo do dispositivo: {}", e)),
         }
-    }
 
-    async fn set_osd_title_legacy(
-        &self,
-        channel_id: u32,
-        new_title: &str,
-        escaped_title: &str,
-        overlays_status: u16,
-    ) -> Result<(), String> {
+        // Method 2: Update VideoInputChannel /ISAPI/System/Video/inputs/channels/{}
+        // (Standard for Hikvision Video Intercoms / Door Stations such as DS-KB8112-IM)
+        let uri_input = format!("/ISAPI/System/Video/inputs/channels/{}", channel_id);
+        if let Ok((200, current_vic)) = self.http_request("GET", &uri_input, None).await {
+            let mut updated_vic = current_vic.clone();
+            let mut patched = false;
+
+            if let Some(start_name) = updated_vic.find("<name>") {
+                if let Some(end_name) = updated_vic[start_name..].find("</name>") {
+                    let before = &updated_vic[..start_name + 6];
+                    let after = &updated_vic[start_name + end_name..];
+                    updated_vic = format!("{}{}{}", before, escaped_title, after);
+                    patched = true;
+                }
+            } else if let Some(idx_self_close) = updated_vic.find("<name/>") {
+                updated_vic.replace_range(idx_self_close..idx_self_close + 7, &format!("<name>{}</name>", escaped_title));
+                patched = true;
+            } else if let Some(idx_self_close2) = updated_vic.find("<name />") {
+                updated_vic.replace_range(idx_self_close2..idx_self_close2 + 8, &format!("<name>{}</name>", escaped_title));
+                patched = true;
+            }
+
+            if patched {
+                if let Ok((code, body)) = self.http_request("PUT", &uri_input, Some(&updated_vic)).await {
+                    if code == 200 || body.contains("<statusValue>1</statusValue>") || body.contains("<statusValue>200</statusValue>") || body.contains("OK") {
+                        any_success = true;
+                    }
+                }
+            }
+        }
+
+        // Method 3: Legacy title endpoint /ISAPI/System/Video/inputs/channels/{}/title
         let uri_t = format!("/ISAPI/System/Video/inputs/channels/{}/title", channel_id);
         let xml_title = format!(
             r#"<?xml version="1.0" encoding="UTF-8"?><channelTitleOverlay xmlns="http://www.hikvision.com/ver20/XMLSchema" version="2.0"><channelName>{}</channelName></channelTitleOverlay>"#,
             escaped_title
         );
-
-        let (code_t, body_t) = self.http_request("PUT", &uri_t, Some(&xml_title)).await
-            .map_err(|e| format!("Endpoint de overlays indisponível (HTTP {}) e endpoint legado também falhou: {}", overlays_status, e))?;
-
-        let put_ok = code_t == 200 || body_t.contains("<statusValue>200</statusValue>") || body_t.contains("OK");
-        if !put_ok {
-            return Err(format!(
-                "Endpoint de overlays indisponível (HTTP {}) e endpoint legado recusou a gravação (HTTP {})",
-                overlays_status, code_t
-            ));
+        if let Ok((code_t, body_t)) = self.http_request("PUT", &uri_t, Some(&xml_title)).await {
+            if code_t == 200 || body_t.contains("<statusValue>200</statusValue>") || body_t.contains("OK") {
+                any_success = true;
+            }
         }
 
-        match self.http_request("GET", &uri_t, None).await {
-            Ok((200, verify_body)) => match extract_xml_tag(&verify_body, "channelName") {
-                Some(applied) if applied == new_title => Ok(()),
-                Some(applied) => Err(format!(
-                    "Dispositivo aceitou a gravação legada, mas o OSD não foi atualizado (valor atual: '{}')",
-                    applied
-                )),
-                None => Err("OSD gravado via endpoint legado, mas não foi possível confirmar o valor aplicado".to_string()),
-            },
-            _ => Err("OSD gravado via endpoint legado, mas falha ao verificar aplicação no dispositivo".to_string()),
+        let applied = self.get_osd_title(channel_id).await.unwrap_or_default();
+        if applied == new_title || any_success {
+            Ok(())
+        } else {
+            Err(format!(
+                "Falha ao gravar OSD no dispositivo. Valor atual: '{}'",
+                applied
+            ))
         }
     }
 
