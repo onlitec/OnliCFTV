@@ -597,6 +597,21 @@ impl IsapiClient {
         "/Streaming/Channels/101".to_string()
     }
 
+    pub async fn discover_substream_channel_url(&self) -> String {
+        if let Ok((code, body)) = self.http_request("GET", "/ISAPI/Streaming/channels", None).await {
+            if code == 200 {
+                if body.contains("<id>102</id>") {
+                    return "/Streaming/Channels/102".to_string();
+                }
+                if let Some(id_str) = extract_xml_tag(&body, "id") {
+                    return format!("/Streaming/Channels/{}", id_str);
+                }
+            }
+        }
+
+        "/Streaming/Channels/102".to_string()
+    }
+
     pub async fn detect_capabilities(&self) -> DeviceCapabilities {
         let mut caps = DeviceCapabilities {
             can_view: true,

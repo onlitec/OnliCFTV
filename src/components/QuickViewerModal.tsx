@@ -63,6 +63,8 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
   const [reloadKey, setReloadKey] = useState(Date.now());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<any>(null);
 
   // Editable fields
   const [editDeviceName, setEditDeviceName] = useState('');
@@ -81,6 +83,8 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
     setConnectError(null);
     setSession(null);
     setImageError(false);
+    retryCountRef.current = 0;
+    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
     setNameSaveMsg(null);
     setOsdSaveMsg(null);
     setPassword('');
@@ -150,7 +154,21 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
     }
   };
 
+  const handleImageError = () => {
+    if (retryCountRef.current < 4) {
+      retryCountRef.current += 1;
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = setTimeout(() => {
+        setReloadKey(Date.now());
+      }, 1200);
+    } else {
+      setImageError(true);
+    }
+  };
+
   const handleReconnectLive = () => {
+    retryCountRef.current = 0;
+    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
     setImageError(false);
     setReloadKey(Date.now());
   };
@@ -434,7 +452,7 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
                         <img
                           src={`${session.local_mjpeg_url}?t=${reloadKey}`}
                           alt={session.device_name}
-                          onError={() => setImageError(true)}
+                          onError={handleImageError}
                           className="w-full h-full object-contain"
                         />
                       ) : (

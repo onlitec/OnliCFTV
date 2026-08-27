@@ -26,6 +26,8 @@ export const VideoCell: React.FC<VideoCellProps> = ({
   const [imageError, setImageError] = useState(false);
   const [reloadKey, setReloadKey] = useState(Date.now());
   const cellRef = useRef<HTMLDivElement>(null);
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<any>(null);
 
   if (!camera) {
     return (
@@ -51,16 +53,24 @@ export const VideoCell: React.FC<VideoCellProps> = ({
   };
 
   const handleManualReconnect = () => {
+    retryCountRef.current = 0;
+    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
     setImageError(false);
     setReloadKey(Date.now());
     onReconnect(camera.id);
   };
 
   const handleImageError = () => {
-    // Backend reports the stream as online, but the <img> tag itself failed to load it
-    // (local server unreachable, connection refused, etc.) — distinct failure from ffmpeg/RTSP errors.
-    console.error(`[VideoCell] Falha ao carregar imagem do stream local (${streamUrl}) para a câmera ${camera.id}`);
-    setImageError(true);
+    if (retryCountRef.current < 4) {
+      retryCountRef.current += 1;
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = setTimeout(() => {
+        setReloadKey(Date.now());
+      }, 1200);
+    } else {
+      console.error(`[VideoCell] Falha ao carregar imagem do stream local (${streamUrl}) para a câmera ${camera.id}`);
+      setImageError(true);
+    }
   };
 
   return (

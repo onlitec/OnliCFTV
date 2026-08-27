@@ -288,15 +288,20 @@ impl CameraManager {
         // 3. Detect Capabilities
         let capabilities = isapi_client.detect_capabilities().await;
 
-        // 4. Discover Stream URL
-        let channel_path = isapi_client.discover_streaming_channel_url().await;
+        // 4. Discover Stream URL (prefer substream 102 for instant, low-latency rendering)
+        let channel_path = isapi_client.discover_substream_channel_url().await;
         let full_rtsp_url = build_authenticated_rtsp_url(&host, rtsp_port, &username, &password, &channel_path);
 
         // 5. Start Video Stream in VideoEngine IMMEDIATELY for sub-second latency
         let session_id = format!("quick_view_{}", host.replace('.', "_"));
-        if let Err(e) = self.video_engine.connect(&session_id, &full_rtsp_url).await {
-            self.log_store.log("ERROR", "QuickViewer", &format!("Erro ao iniciar stream de vídeo: {}", e));
-            return Err(e);
+        if let Err(_) = self.video_engine.connect(&session_id, &full_rtsp_url).await {
+            // Fallback to main stream if substream failed
+            let main_path = isapi_client.discover_streaming_channel_url().await;
+            let fallback_url = build_authenticated_rtsp_url(&host, rtsp_port, &username, &password, &main_path);
+            if let Err(e) = self.video_engine.connect(&session_id, &fallback_url).await {
+                self.log_store.log("ERROR", "QuickViewer", &format!("Erro ao iniciar stream de vídeo: {}", e));
+                return Err(e);
+            }
         }
 
         let local_mjpeg_url = format!("http://127.0.0.1:{}/stream/{}", self.video_engine.server_port(), session_id);

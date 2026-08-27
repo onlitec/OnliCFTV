@@ -53,7 +53,19 @@ async fn mjpeg_stream_handler(
         None => return (StatusCode::NOT_FOUND, "Camera stream not found").into_response(),
     };
 
-    let stream = BroadcastStream::new(rx).filter_map(|res| {
+    let initial_frame = manager.get_latest_frame(&camera_id).await;
+    let initial_stream = tokio_stream::iter(initial_frame.into_iter().map(|frame| {
+        let header = format!(
+            "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n",
+            frame.len()
+        );
+        let mut chunk = header.into_bytes();
+        chunk.extend_from_slice(&frame);
+        chunk.extend_from_slice(b"\r\n");
+        Ok::<_, std::io::Error>(chunk)
+    }));
+
+    let broadcast_stream = BroadcastStream::new(rx).filter_map(|res| {
         match res {
             Ok(frame) => {
                 let header = format!(
@@ -69,6 +81,8 @@ async fn mjpeg_stream_handler(
         }
     });
 
+    let combined_stream = initial_stream.chain(broadcast_stream);
+
     Response::builder()
         .status(StatusCode::OK)
         .header(
@@ -78,6 +92,6 @@ async fn mjpeg_stream_handler(
         .header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")
         .header(header::PRAGMA, "no-cache")
         .header(header::EXPIRES, "0")
-        .body(axum::body::Body::from_stream(stream))
+        .body(axum::body::Body::from_stream(combined_stream))
         .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Stream error").into_response())
 }

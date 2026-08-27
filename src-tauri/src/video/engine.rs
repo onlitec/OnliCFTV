@@ -178,7 +178,14 @@ async fn run_camera_stream_worker(
             st.reconnect_attempts = reconnect_count;
         }
 
-        logger.log("INFO", "VideoEngine", &format!("Tentando conexão RTSP ({}) para câmera {}", reconnect_count + 1, camera_id));
+        let transport = if reconnect_count % 2 == 0 { "tcp" } else { "udp" };
+
+        logger.log("INFO", "VideoEngine", &format!(
+            "Tentando conexão RTSP ({}) via {} para câmera {}",
+            reconnect_count + 1,
+            transport.to_uppercase(),
+            camera_id
+        ));
 
         let ffmpeg_bin = crate::video::bin_locator::get_ffmpeg_path();
         if Path::new(&ffmpeg_bin).is_file() {
@@ -187,18 +194,20 @@ async fn run_camera_stream_worker(
             logger.log("WARN", "VideoEngine", &format!("Binário FFmpeg não encontrado no bundle/local esperado; tentando resolver via PATH do sistema: {}", ffmpeg_bin));
         }
 
-        // Spawn FFmpeg to extract MJPEG frames via stdout pipe with low-latency flags
+        // Spawn FFmpeg to extract MJPEG frames via stdout pipe with robust H.264/H.265 flags
         let mut cmd = crate::video::bin_locator::create_hidden_command(&ffmpeg_bin);
         let mut child = match cmd
             .args([
                 "-hide_banner",
-                "-loglevel", "error",
-                "-rtsp_transport", "tcp",
-                "-timeout", "3000000",
-                "-fflags", "nobuffer+discardcorrupt",
+                "-loglevel", "warning",
+                "-rtsp_transport", transport,
+                "-stimeout", "6000000",
+                "-fflags", "+nobuffer+discardcorrupt+genpts",
                 "-flags", "low_delay",
-                "-analyzeduration", "1000000",
-                "-probesize", "1000000",
+                "-max_delay", "500000",
+                "-analyzeduration", "2000000",
+                "-probesize", "2000000",
+                "-threads", "2",
                 "-i", &rtsp_url,
                 "-an",
                 "-c:v", "mjpeg",
