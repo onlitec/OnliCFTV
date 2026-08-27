@@ -56,14 +56,15 @@ graph TD
 - **Configurações**: Exibição de caminhos do banco SQLite, status de criptografia e parâmetros do servidor local.
 
 ### 3.2. Backend Nativo (Rust + Tauri v2)
-- **Database (`database/repository.rs`)**: Banco SQLite com `rusqlite`, modo WAL ativado para alta concorrência e integridade transacional.
+- **Database (`database/repository.rs` & `schema.rs`)**: Banco SQLite com `rusqlite`, modo WAL ativado para alta concorrência, migrações automáticas de schema e persistência de metadados como `device_name`, `osd`, `http_port`.
 - **Segurança de Credenciais (`camera/crypto.rs`)**: Criptografia AES-256-GCM com chave derivada exclusivamente da máquina local (hostname + user + machine-id), impedindo o vazamento de senhas em texto puro.
+- **Cliente ISAPI Multicamadas (`camera/isapi.rs`)**: Cliente HTTP nativo com autenticação Digest e Basic, com suporte completo a consultas de informações de dispositivos (`DeviceInfo`), detecção de perfis de streaming e controle de sobreposição de vídeo (OSD e TextOverlay) para câmeras IP e vídeo porteiros/interfonia.
 - **Log Sanitizer (`logging/logger.rs`)**: Oculta automaticamente senhas e tokens de URLs RTSP (`rtsp://user:***@host`) nos logs do sistema.
-- **Motor de Vídeo Abstrato (`video/engine.rs`)**: Orquestra sessões de stream por câmera, gerencia ciclo de vida, reconexão automática com backoff exponencial e distribuição de frames.
-- **Servidor de Stream Local (`video/stream_server.rs`)**: Servidor HTTP local leve baseado em `axum` e `tokio-stream` que distribui o stream MJPEG para a interface sem intermediários na porta `18554`.
+- **Motor de Vídeo Abstrato (`video/engine.rs`)**: Orquestra sessões de stream por câmera via FFmpeg, compatível com codecs H.264, H.265/HEVC e H.265+ Smart Codec, fallback dinâmico de transporte TCP/UDP, reconexão automática e decodificação multi-thread.
+- **Servidor de Stream Local (`video/stream_server.rs`)**: Servidor HTTP local leve baseado em `axum` e `tokio-stream` com entrega de frame inicial imediato em cache e transmissão contínua multipart MJPEG na porta `18554`.
 - **RTSP Probe (`rtsp/probe.rs`)**: Inspeção técnica prévia via `ffprobe` com transporte TCP e timeout de 5 segundos.
 
 ## 4. Multiplataforma (Linux & Windows)
 O projeto foi estruturado para compilação nativa:
-- **Linux**: Pacote `.deb` e `AppImage` utilizando WebKitGTK 4.1 e GTK3.
-- **Windows**: Executável `.exe` e instalador MSI/NSIS utilizando WebView2.
+- **Linux**: Pacote `.deb`, `AppImage` e `.rpm` utilizando WebKitGTK 4.1 e GTK3.
+- **Windows**: Instalador NSIS `.exe` com FFmpeg embutido e pacote portátil `.zip` utilizando WebView2.
