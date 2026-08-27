@@ -127,12 +127,24 @@ fn get_linux_interfaces() -> Vec<NetworkInterfaceInfo> {
 }
 
 #[cfg(target_os = "windows")]
+fn flatten_json_objects(value: serde_json::Value, out: &mut Vec<serde_json::Value>) {
+    match value {
+        serde_json::Value::Array(arr) => {
+            for item in arr {
+                flatten_json_objects(item, out);
+            }
+        }
+        obj @ serde_json::Value::Object(_) => out.push(obj),
+        _ => {}
+    }
+}
+
+#[cfg(target_os = "windows")]
 fn get_windows_interfaces() -> Vec<NetworkInterfaceInfo> {
     use std::os::windows::process::CommandExt;
 
     // Ask PowerShell for every up IPv4-capable adapter, its addresses/prefix lengths, MAC, and the
-    // system's current default gateway, all in one call. ConvertTo-Json unwraps a single-element
-    // array into a bare object, so callers must accept either shape.
+    // system's current default gateway, all in one call.
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     let script = r#"
 $gw = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object -Property RouteMetric | Select-Object -First 1 -ExpandProperty NextHop
@@ -151,7 +163,7 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
         }
     }
 }
-, $out | ConvertTo-Json -Compress
+$out | ConvertTo-Json -Compress
 "#;
 
     let mut cmd = Command::new("powershell");
@@ -164,16 +176,21 @@ Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
     };
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let parsed: serde_json::Value = match serde_json::from_str(stdout.trim()) {
+    let trimmed = stdout.trim();
+    // PowerShell's ConvertTo-Json has two well-known footguns: piping a single object yields a
+    // bare `{...}` instead of `[{...}]`, and piping an empty array yields literal `null` rather
+    // than `[]`. Parse defensively and flatten any shape (object, array, empty, or nested array)
+    // into a flat list of interface objects, instead of assuming a specific top-level shape.
+    if trimmed.is_empty() {
+        return Vec::new();
+    }
+    let parsed: serde_json::Value = match serde_json::from_str(trimmed) {
         Ok(v) => v,
         Err(_) => return Vec::new(),
     };
 
-    let items: Vec<serde_json::Value> = match parsed {
-        serde_json::Value::Array(arr) => arr,
-        obj @ serde_json::Value::Object(_) => vec![obj],
-        _ => Vec::new(),
-    };
+    let mut items: Vec<serde_json::Value> = Vec::new();
+    flatten_json_objects(parsed, &mut items);
 
     let mut interfaces = Vec::new();
     for item in items {

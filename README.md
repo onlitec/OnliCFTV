@@ -39,17 +39,22 @@ Baixe a versão mais recente diretamente da aba [Releases](https://github.com/on
 | Pacote | Tipo | Descrição |
 |---|---|---|
 | [**OnliView_0.1.5_x64-setup.exe**](https://github.com/onlitec/OnliCFTV/releases/download/v0.1.5/OnliView_0.1.5_x64-setup.exe) | **Instalador Oficial (NSIS, build v0.1.5)** | Assistente completo com atalhos no Desktop/Menu Iniciar, desinstalador e motor FFmpeg embutido |
-| [**OnliView_Windows_Portable_v0.1.6.zip**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_Windows_Portable_v0.1.6.zip) | **Pacote Portátil (ZIP)** | Execução direta sem instalação (inclui `onliview.exe` e binários do motor de vídeo) — **recomendado até o instalador NSIS ser recompilado** |
+| [**OnliView_Windows_Portable_v0.1.7.zip**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_Windows_Portable_v0.1.7.zip) | **Pacote Portátil (ZIP)** | Execução direta sem instalação (inclui `onliview.exe`, FFmpeg/FFprobe e `WebView2Loader.dll`) — **recomendado até o instalador NSIS ser recompilado** |
 
 ### 🐧 Linux (Ubuntu / Debian / Fedora / RedHat)
 | Pacote | Tipo | Comando de Instalação |
 |---|---|---|
-| [**OnliView_0.1.6_amd64.deb**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.6_amd64.deb) | Pacote Debian/Ubuntu | `sudo dpkg -i OnliView_0.1.6_amd64.deb` |
+| [**OnliView_0.1.7_amd64.deb**](https://github.com/onlitec/OnliCFTV/releases/latest/download/OnliView_0.1.7_amd64.deb) | Pacote Debian/Ubuntu | `sudo dpkg -i OnliView_0.1.7_amd64.deb` |
 | [**OnliView_0.1.0_amd64.AppImage**](https://github.com/onlitec/OnliCFTV/releases/download/v0.1.0/OnliView_0.1.0_amd64.AppImage) | Universal Linux (build v0.1.0*) | `chmod +x OnliView_0.1.0_amd64.AppImage && ./OnliView_0.1.0_amd64.AppImage` |
 | [**OnliView-0.1.0-1.x86_64.rpm**](https://github.com/onlitec/OnliCFTV/releases/download/v0.1.0/OnliView-0.1.0-1.x86_64.rpm) | Pacote Fedora/RHEL (build v0.1.0*) | `sudo rpm -i OnliView-0.1.0-1.x86_64.rpm` |
 
 \* AppImage e RPM ainda não foram recompilados com as últimas correções; use o `.deb` para a versão mais atual no Linux.
-\*\* O instalador `.exe` (NSIS) da v0.1.6 não pôde ser gerado (bug de empacotamento do `makensis` neste ambiente de build) — use o ZIP portátil da v0.1.6 acima, que já contém a correção de detecção de rede no Windows.
+\*\* O instalador `.exe` (NSIS) não pôde ser recompilado desde a v0.1.5 (bug de empacotamento do `makensis` neste ambiente de build) — use o ZIP portátil acima, que já contém todas as correções.
+
+> ⚠️ **Windows**: no primeiro uso, aprove o aviso do **Firewall do Windows** para o OnliView (nas
+> redes Privada e Pública) — sem isso, respostas de descoberta SADP/ONVIF/SSDP são bloqueadas e
+> muitos dispositivos deixam de aparecer na varredura. Se o técnico não tiver permissão para
+> aprovar o aviso, rode o app como Administrador na primeira vez.
 
 ---
 

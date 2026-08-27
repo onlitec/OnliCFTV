@@ -42,6 +42,26 @@ impl DiscoveryEngine {
         let broadcast_targets = vec![selected_iface.broadcast.clone(), "255.255.255.255".to_string()];
         let default_gw_ip = selected_iface.gateway.clone().unwrap_or_default();
 
+        // Phase 0: Interface selection — logged unconditionally so a discovery-coverage report
+        // can be diagnosed from the log alone (which of N detected interfaces was picked, and
+        // whether detection fell through to the hardcoded lab-IP fallback).
+        progress_callback(DiscoveryProgress {
+            percentage: 5,
+            phase: format!(
+                "Interface selecionada: {} ({}) — IP {} / máscara {} / gateway {} — {} interface(s) detectada(s) no total",
+                selected_iface.name,
+                selected_iface.id,
+                selected_iface.ip,
+                selected_iface.netmask,
+                selected_iface.gateway.as_deref().unwrap_or("nenhum"),
+                interfaces.len()
+            ),
+            devices_found: 0,
+            active_protocols: Vec::new(),
+            completed_protocols: Vec::new(),
+            is_running: true,
+        });
+
         // Phase 1: ARP Inspection (10%)
         progress_callback(DiscoveryProgress {
             percentage: 10,

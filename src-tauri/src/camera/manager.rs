@@ -52,11 +52,14 @@ impl CameraManager {
         let iface_desc = interface_name.clone().unwrap_or_else(|| "Padrão".to_string());
         self.log_store.log("INFO", "Discovery", &format!("Iniciando Descoberta Inteligente Multicamada na interface: {}", iface_desc));
         
+        // Discovery only reports ~5 phase transitions total, so logging every one of them is not
+        // spam — the previous "% 25 == 0" filter accidentally suppressed nearly all of them (the
+        // actual percentages used are 10/30/65/85/100, which barely intersect that pattern),
+        // hiding exactly the diagnostic detail (which subnet was scanned, host count) needed to
+        // debug discovery coverage issues.
         let log_clone = self.log_store.clone();
         let mut devices = DiscoveryEngine::run_discovery(interface_name, move |prog| {
-            if prog.percentage % 25 == 0 || prog.percentage == 100 {
-                log_clone.log("INFO", "Discovery", &format!("[Progresso {}%] {}", prog.percentage, prog.phase));
-            }
+            log_clone.log("INFO", "Discovery", &format!("[Progresso {}%] {}", prog.percentage, prog.phase));
         }).await;
         
         let existing_cameras = self.db.get_cameras().unwrap_or_default();
