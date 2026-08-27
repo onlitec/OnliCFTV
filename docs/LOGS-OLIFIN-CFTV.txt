@@ -1,0 +1,82 @@
+27/08/2026, 08:57:09 [INFO] [App] Inicializando OnliView VMS Engine
+27/08/2026, 08:57:09 [INFO] [Discovery] Iniciando Descoberta Inteligente Multicamada na interface: Padrão
+27/08/2026, 08:57:11 [INFO] [Discovery] [Progresso 100%] Classificação por evidências concluída!
+27/08/2026, 08:57:11 [INFO] [Discovery] Descoberta concluída: 151 dispositivos localizados e diagnosticados
+27/08/2026, 08:57:23 [INFO] [QuickViewer] Autenticando sessão Quick View para dispositivo: 10.10.1.10
+27/08/2026, 08:57:23 [INFO] [VideoEngine] Iniciando stream para câmera quick_view_10_10_1_10: rtsp://admin:***@10.10.1.10:554/Streaming/Channels/101
+27/08/2026, 08:57:23 [INFO] [VideoEngine] Tentando conexão RTSP (1) para câmera quick_view_10_10_1_10
+27/08/2026, 08:57:23 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 08:57:24 [INFO] [QuickViewer] Sessão Quick View estabelecida com sucesso para 10.10.1.10
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 12
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 16
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 16
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 18
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 16
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 20
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 20
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 22
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 20
+27/08/2026, 08:57:25 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 24
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 24
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 26
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 24
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 28
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 28
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 30
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 28
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 32
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 32
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 34
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 32
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 36
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 36
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 38
+27/08/2026, 08:57:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 36
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 40
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 40
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 42
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 40
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 44
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 44
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 46
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 44
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Could not find ref with POC 48
+27/08/2026, 08:57:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] [hevc @ 000001cf1e5afd40] Error constructing the frame RPS.
+27/08/2026, 08:57:27 [INFO] [VideoEngine] Stream Online recebendo vídeo para câmera quick_view_10_10_1_10
+27/08/2026, 08:58:05 [INFO] [QuickViewer] Alterando OSD para 'TORRE-1  - LATERAL DIREITA' no canal 1 do host 10.10.1.10
+27/08/2026, 08:58:07 [ERROR] [Audit] Falha na operação CHANGE_OSD no host 10.10.1.10: Dispositivo aceitou a gravação, mas o OSD não foi atualizado (valor atual: '')
+27/08/2026, 08:58:18 [INFO] [QuickViewer] Alterando OSD para 'TORRE1  - LATERAL DIREITA' no canal 1 do host 10.10.1.10
+27/08/2026, 08:58:19 [ERROR] [Audit] Falha na operação CHANGE_OSD no host 10.10.1.10: Dispositivo aceitou a gravação, mas o OSD não foi atualizado (valor atual: '')
