@@ -20,8 +20,55 @@ import {
   Copy,
   Info,
   Download,
-  Tv,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from 'lucide-react';
+
+type SortColumn = 'ip' | 'type' | 'model' | 'status' | 'confidence';
+
+// Compares dotted-decimal IPs octet-by-octet as numbers (e.g. "10.0.0.2" < "10.0.0.10"),
+// instead of a lexicographic string compare that would get that pair backwards.
+function compareIpAddresses(a: string, b: string): number {
+  const partsA = a.split('.').map(Number);
+  const partsB = b.split('.').map(Number);
+  for (let i = 0; i < 4; i++) {
+    const diff = (partsA[i] ?? 0) - (partsB[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+interface SortableHeaderProps {
+  label: string;
+  column: SortColumn;
+  sortColumn: SortColumn | null;
+  sortDirection: 'asc' | 'desc';
+  onSort: (column: SortColumn) => void;
+}
+
+const SortableHeader: React.FC<SortableHeaderProps> = ({ label, column, sortColumn, sortDirection, onSort }) => {
+  const isActive = sortColumn === column;
+  return (
+    <th className="px-3 py-2.5">
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={`flex items-center gap-1 uppercase text-[10px] tracking-wider font-semibold ${
+          isActive ? 'text-sky-600 dark:text-sky-400' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+        }`}
+        title={`Ordenar por ${label}`}
+      >
+        {label}
+        {isActive ? (
+          sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+        ) : (
+          <ChevronsUpDown className="h-3 w-3 opacity-40" />
+        )}
+      </button>
+    </th>
+  );
+};
 import type {
   DiscoveredDevice,
   DeviceType,
@@ -31,7 +78,6 @@ import type {
 } from '@/types';
 import { api } from '@/services/api';
 import { QuickViewerModal } from '@/components/QuickViewerModal';
-import { DeviceThumbnailCell } from '@/components/DeviceThumbnailCell';
 
 interface DiscoveryPanelProps {
   discoveredDevices: DiscoveredDevice[];
@@ -58,9 +104,18 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [expandedEvidencesIp, setExpandedEvidencesIp] = useState<string | null>(null);
 
-  // Auto Preview Toggle & Limit
-  const [autoPreview, setAutoPreview] = useState(false);
-  const [maxPreviews, setMaxPreviews] = useState<number>(4);
+  // Column sorting
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
 
   // Quick Viewer Modal state
   const [quickViewDevice, setQuickViewDevice] = useState<DiscoveredDevice | null>(null);
@@ -120,7 +175,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
 
   // Filtered devices list
   const filteredDevices = useMemo(() => {
-    return (discoveredDevices || []).filter((d) => {
+    const filtered = (discoveredDevices || []).filter((d) => {
       let matchesType = true;
       if (activeFilter === 'with_issues') {
         matchesType = d.issues && d.issues.length > 0;
@@ -141,7 +196,32 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
 
       return matchesType && matchesQuery;
     });
-  }, [discoveredDevices, activeFilter, searchQuery]);
+
+    if (!sortColumn) return filtered;
+
+    const sorted = [...filtered].sort((a, b) => {
+      let cmp = 0;
+      switch (sortColumn) {
+        case 'ip':
+          cmp = compareIpAddresses(a.ip, b.ip);
+          break;
+        case 'type':
+          cmp = a.device_type_label.localeCompare(b.device_type_label);
+          break;
+        case 'model':
+          cmp = a.hardware_model.localeCompare(b.hardware_model);
+          break;
+        case 'status':
+          cmp = (a.activation_status || '').localeCompare(b.activation_status || '');
+          break;
+        case 'confidence':
+          cmp = a.confidence_score - b.confidence_score;
+          break;
+      }
+      return sortDirection === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [discoveredDevices, activeFilter, searchQuery, sortColumn, sortDirection]);
 
   const unaddedInFilter = filteredDevices.filter((d) => !d.is_already_added);
 
@@ -317,36 +397,8 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
           </div>
         </div>
 
-        {/* Right: Actions, Auto Preview Switch, Search & Buttons */}
+        {/* Right: Actions, Search & Buttons */}
         <div className="flex items-center gap-2.5">
-          {/* Auto Preview Toggle */}
-          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1 text-xs font-mono">
-            <Tv className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
-            <span className="text-slate-600 dark:text-slate-400">Preview Auto:</span>
-            <button
-              type="button"
-              onClick={() => setAutoPreview(!autoPreview)}
-              className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition ${
-                autoPreview
-                  ? 'bg-emerald-500 text-white dark:text-slate-950 shadow'
-                  : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {autoPreview ? 'ON' : 'OFF'}
-            </button>
-            {autoPreview && (
-              <select
-                value={maxPreviews}
-                onChange={(e) => setMaxPreviews(Number(e.target.value))}
-                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white text-[10px] rounded px-1 ml-1"
-              >
-                <option value={1}>1 stream</option>
-                <option value={2}>2 streams</option>
-                <option value={4}>4 streams</option>
-                <option value={6}>6 streams</option>
-              </select>
-            )}
-          </div>
 
           {/* Quick Search */}
           <div className="relative w-48 sm:w-56">
@@ -558,14 +610,13 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                   />
                 </th>
                 <th className="px-2.5 py-2.5 w-10 text-center text-slate-400 dark:text-slate-500">Nº</th>
-                <th className="px-3 py-2.5 w-32">Preview</th>
-                <th className="px-3 py-2.5">Endereço IP</th>
-                <th className="px-3 py-2.5">Tipo</th>
-                <th className="px-3 py-2.5">Modelo</th>
-                <th className="px-3 py-2.5">Status</th>
+                <SortableHeader label="Endereço IP" column="ip" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Tipo" column="type" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Modelo" column="model" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
+                <SortableHeader label="Status" column="status" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <th className="px-3 py-2.5">Nº Série / MAC</th>
                 <th className="px-3 py-2.5">Portas / Protocolos</th>
-                <th className="px-3 py-2.5">Confiança</th>
+                <SortableHeader label="Confiança" column="confidence" sortColumn={sortColumn} sortDirection={sortDirection} onSort={handleSort} />
                 <th className="px-3 py-2.5 text-right">Ações</th>
               </tr>
             </thead>
@@ -597,15 +648,6 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                       {/* Nº */}
                       <td className="px-2.5 py-2 text-center text-slate-400 dark:text-slate-500 font-mono text-[11px]">
                         {idx + 1}
-                      </td>
-
-                      {/* PREVIEW THUMBNAIL CELL */}
-                      <td className="px-3 py-2">
-                        <DeviceThumbnailCell
-                          device={dev}
-                          isAutoPreviewEnabled={autoPreview && idx < maxPreviews}
-                          onOpenQuickView={() => setQuickViewDevice(dev)}
-                        />
                       </td>
 
                       {/* IP (Clickable Blue Link) */}
@@ -764,7 +806,7 @@ export const DiscoveryPanel: React.FC<DiscoveryPanelProps> = ({
                     {/* Expandable Evidences */}
                     {isEvidencesOpen && (
                       <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800">
-                        <td colSpan={11} className="px-6 py-2.5">
+                        <td colSpan={10} className="px-6 py-2.5">
                           <div className="flex flex-wrap gap-1.5 text-[10px]">
                             {dev.evidences?.map((ev, i) => (
                               <span key={i} className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30">

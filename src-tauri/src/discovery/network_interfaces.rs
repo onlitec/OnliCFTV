@@ -84,6 +84,36 @@ impl NetworkInterfaceManager {
         interfaces.sort_by(|a, b| b.is_default.cmp(&a.is_default));
         interfaces
     }
+
+    /// Enumerates every usable host address in the subnet described by `ip`/`netmask` (excluding
+    /// the network and broadcast addresses), instead of assuming a fixed /24. Falls back to a /24
+    /// window around `ip` if the mask fails to parse or would produce a pathologically large range
+    /// (guards against a misdetected netmask, e.g. /8, blowing up the scan to millions of addresses).
+    pub fn host_ips_in_subnet(ip: &str, netmask: &str, cap: usize) -> Vec<String> {
+        let parsed = (ip.parse::<std::net::Ipv4Addr>(), netmask.parse::<std::net::Ipv4Addr>());
+        let (ip_v4, mask_v4) = match parsed {
+            (Ok(i), Ok(m)) => (i, m),
+            _ => return default_24_range(ip),
+        };
+
+        let ip_u32 = u32::from(ip_v4);
+        let mask_u32 = u32::from(mask_v4);
+        if mask_u32 == 0 || mask_u32 == u32::MAX {
+            return default_24_range(ip);
+        }
+
+        let network = ip_u32 & mask_u32;
+        let broadcast = network | !mask_u32;
+        let host_count = (broadcast.wrapping_sub(network)).saturating_sub(1) as usize;
+
+        if host_count == 0 || host_count > cap {
+            return default_24_range(ip);
+        }
+
+        (network + 1..broadcast)
+            .map(|addr| std::net::Ipv4Addr::from(addr).to_string())
+            .collect()
+    }
 }
 
 fn get_mac_address(iface_name: &str) -> Option<String> {
@@ -138,6 +168,11 @@ fn calculate_broadcast(ip: &str, prefix: u32) -> String {
         return std::net::Ipv4Addr::from(bcast_u32).to_string();
     }
     format!("{}.255", ip.rsplit_once('.').map(|(p, _)| p).unwrap_or("192.168.1"))
+}
+
+fn default_24_range(ip: &str) -> Vec<String> {
+    let prefix = ip.rsplit_once('.').map(|(p, _)| p).unwrap_or("172.20.120");
+    (1..=254).map(|i| format!("{}.{}", prefix, i)).collect()
 }
 
 fn get_friendly_interface_name(name: &str) -> String {

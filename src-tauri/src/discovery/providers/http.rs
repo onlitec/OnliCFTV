@@ -7,6 +7,13 @@ pub struct HttpFingerprint {
     pub is_hikvision: bool,
     pub is_dahua: bool,
     pub is_intelbras: bool,
+    pub is_axis: bool,
+    pub is_uniview: bool,
+    pub is_reolink: bool,
+    pub is_vivotek: bool,
+    pub is_bosch: bool,
+    pub is_hanwha: bool,
+    pub is_tplink: bool,
     pub is_linux_server: bool,
     pub is_switch: bool,
     pub is_router: bool,
@@ -80,13 +87,27 @@ impl HttpFingerprintProvider {
         }
 
         // 3. Known CFTV Signatures
-        if resp_lower.contains("/doc/index.html") || resp_lower.contains("hikvision") || resp_lower.contains("app-webserver") 
+        if resp_lower.contains("/doc/index.html") || resp_lower.contains("hikvision") || resp_lower.contains("app-webserver")
             || resp_lower.contains("web version") || resp_lower.contains("web/index.html") {
             fp.is_hikvision = true;
         } else if resp_lower.contains("dahua") || resp_lower.contains("quick_config") {
             fp.is_dahua = true;
         } else if resp_lower.contains("intelbras") || resp_lower.contains("sim next") {
             fp.is_intelbras = true;
+        } else if resp_lower.contains("axis") {
+            fp.is_axis = true;
+        } else if resp_lower.contains("uniview") {
+            fp.is_uniview = true;
+        } else if resp_lower.contains("reolink") {
+            fp.is_reolink = true;
+        } else if resp_lower.contains("vivotek") {
+            fp.is_vivotek = true;
+        } else if resp_lower.contains("bosch") {
+            fp.is_bosch = true;
+        } else if resp_lower.contains("hanwha") || resp_lower.contains("wisenet") {
+            fp.is_hanwha = true;
+        } else if resp_lower.contains("tp-link") || resp_lower.contains("vigi") {
+            fp.is_tplink = true;
         }
 
         Some(fp)

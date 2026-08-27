@@ -117,3 +117,9 @@ pub struct QuickViewSessionInfo {
     pub capabilities: DeviceCapabilities,
     pub metrics: CameraConnectionTestResult,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CachedDeviceCredentials {
+    pub username: String,
+    pub password: String,
+}

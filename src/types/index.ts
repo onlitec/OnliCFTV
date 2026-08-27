@@ -207,3 +207,8 @@ export interface QuickViewSessionInfo {
   capabilities: DeviceCapabilities;
   metrics: CameraConnectionTestResult;
 }
+
+export interface CachedDeviceCredentials {
+  username: string;
+  password: string;
+}

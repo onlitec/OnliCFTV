@@ -56,3 +56,12 @@ cd src-tauri && cargo check
 ```bash
 pnpm tauri build
 ```
+
+### Build Windows (.exe) — atenção ao FFmpeg embutido
+`src-tauri/resources/ffmpeg.exe` e `src-tauri/resources/ffprobe.exe` são propositalmente ignorados pelo git
+(`*.exe` no `.gitignore`, por serem binários grandes — ver `video/bin_locator.rs`). Um checkout limpo
+**não** os contém. Antes de rodar `pnpm tauri build --target x86_64-pc-windows-gnu`, copie manualmente
+`ffmpeg.exe` e `ffprobe.exe` (build estático Windows x64) para `src-tauri/resources/`. Sem eles, o instalador
+gerado não terá o motor de vídeo embutido e, na máquina do usuário final (sem ffmpeg no PATH), o Live View
+não exibirá imagem — apenas o log de Diagnóstico mostrará "Binário FFmpeg não encontrado no bundle/local
+esperado".

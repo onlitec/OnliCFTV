@@ -150,6 +150,11 @@ async fn stop_device_preview(ip: String, state: State<'_, AppState>) -> Result<(
     state.camera_manager.stop_device_preview(&ip).await
 }
 
+#[tauri::command]
+async fn get_device_credentials(ip: String, state: State<'_, AppState>) -> Result<Option<CachedDeviceCredentials>, String> {
+    state.camera_manager.get_cached_credentials(&ip)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let config = AppConfig::default();
@@ -209,7 +214,8 @@ pub fn run() {
             quick_view_set_device_name,
             quick_view_set_osd,
             start_device_preview,
-            stop_device_preview
+            stop_device_preview,
+            get_device_credentials
         ])
         .run(tauri::generate_context!())
         .expect("error while running OnliView application");

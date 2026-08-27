@@ -6,6 +6,7 @@ use crate::discovery::types::{DiscoveredDevice, NetworkInterfaceInfo, DiscoveryP
 use crate::discovery::network_interfaces::NetworkInterfaceManager;
 use crate::discovery::providers::sadp::SadpProvider;
 use crate::discovery::providers::onvif::OnvifProvider;
+use crate::discovery::providers::ssdp::SsdpProvider;
 use crate::discovery::providers::arp::ArpProvider;
 use crate::discovery::providers::tcp::TcpPortProvider;
 use crate::discovery::providers::http::HttpFingerprintProvider;
@@ -53,19 +54,20 @@ impl DiscoveryEngine {
 
         let arp_table = ArpProvider::get_arp_table();
 
-        // Phase 2: SADP + ONVIF UDP Broadcasts (30%)
+        // Phase 2: SADP + ONVIF + SSDP/UPnP UDP Broadcasts (30%)
         progress_callback(DiscoveryProgress {
             percentage: 30,
-            phase: "Enviando sondas ONVIF WS-Discovery e Hikvision SADP...".to_string(),
+            phase: "Enviando sondas ONVIF WS-Discovery, Hikvision SADP e SSDP/UPnP...".to_string(),
             devices_found: 0,
-            active_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string()],
+            active_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string(), "SSDP".to_string()],
             completed_protocols: vec!["ARP".to_string()],
             is_running: true,
         });
 
-        let (sadp_devices, onvif_devices) = tokio::join!(
+        let (sadp_devices, onvif_devices, ssdp_devices) = tokio::join!(
             SadpProvider::probe(&broadcast_targets, Duration::from_millis(800)),
-            OnvifProvider::probe(&broadcast_targets, Duration::from_millis(800))
+            OnvifProvider::probe(&broadcast_targets, Duration::from_millis(800)),
+            SsdpProvider::probe(&broadcast_targets, Duration::from_millis(800))
         );
 
         for dev in sadp_devices {
@@ -74,24 +76,28 @@ impl DiscoveryEngine {
         for dev in onvif_devices {
             deduplicator.insert_or_merge(dev);
         }
+        for dev in ssdp_devices {
+            deduplicator.insert_or_merge(dev);
+        }
 
         // Phase 3: Active Subnet Sweep with Bounded Concurrency (65%)
-        let subnet_prefix = selected_iface.ip.rsplit_once('.').map(|(p, _)| p).unwrap_or("172.20.120");
+        // Uses the interface's real netmask (falls back to /24 for unparseable/oversized masks)
+        // instead of assuming every network is a /24.
+        let host_ips = NetworkInterfaceManager::host_ips_in_subnet(&selected_iface.ip, &selected_iface.netmask, 1024);
 
         progress_callback(DiscoveryProgress {
             percentage: 65,
-            phase: format!("Varrendo portas na rede {}...", subnet_prefix),
+            phase: format!("Varrendo {} endereços na rede {}/{}...", host_ips.len(), selected_iface.ip, selected_iface.netmask),
             devices_found: 0,
             active_protocols: vec!["TCP".to_string(), "RTSP".to_string(), "HTTP".to_string()],
-            completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string()],
+            completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string(), "SSDP".to_string()],
             is_running: true,
         });
 
         let semaphore = Arc::new(Semaphore::new(48));
         let mut tcp_set = JoinSet::new();
 
-        for i in 1..=254 {
-            let ip_str = format!("{}.{}", subnet_prefix, i);
+        for ip_str in host_ips {
             let sem = semaphore.clone();
             tcp_set.spawn(async move {
                 let _permit = sem.acquire().await.ok();
@@ -103,9 +109,9 @@ impl DiscoveryEngine {
         let mut active_hosts = Vec::new();
         while let Some(res) = tcp_set.join_next().await {
             if let Ok((ip_str, ports)) = res {
-                let has_any_port = ports.rtsp_554 || ports.hikvision_8000 || ports.dahua_37777 
-                    || ports.http_80 || ports.https_443 || ports.http_8080 
-                    || ports.ssh_22 || ports.smb_445 || ports.postgres_5432 || ports.mysql_3306 || ports.docker_2375 
+                let has_any_port = ports.rtsp_554 || ports.rtsp_8554 || ports.rtsp_10554 || ports.hikvision_8000 || ports.dahua_37777
+                    || ports.http_80 || ports.https_443 || ports.http_8080
+                    || ports.ssh_22 || ports.smb_445 || ports.postgres_5432 || ports.mysql_3306 || ports.docker_2375
                     || ports.snmp_161 || ports.telnet_23 || ports.dns_53;
 
                 if has_any_port {
@@ -120,7 +126,7 @@ impl DiscoveryEngine {
             phase: "Coletando assinaturas HTTP e títulos de serviços...".to_string(),
             devices_found: active_hosts.len(),
             active_protocols: vec!["HTTP Fingerprint".to_string()],
-            completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string(), "TCP".to_string()],
+            completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string(), "SSDP".to_string(), "TCP".to_string()],
             is_running: true,
         });
 
@@ -148,6 +154,8 @@ impl DiscoveryEngine {
 
                 let mut protocols = Vec::new();
                 if ports.rtsp_554 { protocols.push("RTSP:554".to_string()); }
+                if ports.rtsp_8554 { protocols.push("RTSP:8554".to_string()); }
+                if ports.rtsp_10554 { protocols.push("RTSP:10554".to_string()); }
                 if ports.hikvision_8000 { protocols.push("SDK:8000".to_string()); }
                 if ports.dahua_37777 { protocols.push("SDK:37777".to_string()); }
                 if ports.http_80 { protocols.push("HTTP:80".to_string()); }
@@ -169,6 +177,7 @@ impl DiscoveryEngine {
                     has_sadp: false,
                     sadp_model: None,
                     has_onvif: false,
+                    has_ssdp: false,
                     open_ports: &ports,
                     http_fp: http_fp.as_ref(),
                     is_default_gateway: is_gw,
@@ -188,7 +197,7 @@ impl DiscoveryEngine {
                     serial_number: None,
                     firmware_version: None,
                     activation_status: Some("Ativo".to_string()),
-                    rtsp_port: if ports.rtsp_554 { 554 } else { 0 },
+                    rtsp_port: if ports.rtsp_554 { 554 } else if ports.rtsp_8554 { 8554 } else if ports.rtsp_10554 { 10554 } else { 0 },
                     http_port: if ports.http_80 { 80 } else if ports.http_8080 { 8080 } else if ports.https_443 { 443 } else { 0 },
                     sdk_port: if ports.hikvision_8000 { 8000 } else if ports.dahua_37777 { 37777 } else { 0 },
                     protocols,
@@ -227,7 +236,7 @@ impl DiscoveryEngine {
             phase: "Classificação por evidências concluída!".to_string(),
             devices_found: final_devices.len(),
             active_protocols: Vec::new(),
-            completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string(), "TCP".to_string(), "HTTP Fingerprint".to_string()],
+            completed_protocols: vec!["ARP".to_string(), "SADP".to_string(), "ONVIF".to_string(), "SSDP".to_string(), "TCP".to_string(), "HTTP Fingerprint".to_string()],
             is_running: false,
         });
 

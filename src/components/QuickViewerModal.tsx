@@ -69,7 +69,8 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
   const [isSavingOsd, setIsSavingOsd] = useState(false);
   const [osdSaveMsg, setOsdSaveMsg] = useState<{ success: boolean; text: string } | null>(null);
 
-  // Auto-fill and try connecting with remembered lab credentials if on test subnet
+  // Auto-fill credentials previously used successfully on this device, so the technician
+  // doesn't have to retype the password every time they reopen Quick View for the same IP.
   useEffect(() => {
     setStep('auth');
     setConnectError(null);
@@ -77,13 +78,16 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
     setImageError(false);
     setNameSaveMsg(null);
     setOsdSaveMsg(null);
+    setPassword('');
 
-    // If Hikvision lab device, pre-fill password for convenience
-    if (device.ip === '172.20.120.44' || device.ip === '172.20.120.67') {
-      setPassword('Onlitec@2026');
-    } else {
-      setPassword('');
-    }
+    api.getDeviceCredentials(device.ip)
+      .then((cached) => {
+        if (cached) {
+          setUsername(cached.username);
+          setPassword(cached.password);
+        }
+      })
+      .catch(console.error);
   }, [device]);
 
   // Handle Disconnect on modal close

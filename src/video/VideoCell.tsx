@@ -56,6 +56,13 @@ export const VideoCell: React.FC<VideoCellProps> = ({
     onReconnect(camera.id);
   };
 
+  const handleImageError = () => {
+    // Backend reports the stream as online, but the <img> tag itself failed to load it
+    // (local server unreachable, connection refused, etc.) — distinct failure from ffmpeg/RTSP errors.
+    console.error(`[VideoCell] Falha ao carregar imagem do stream local (${streamUrl}) para a câmera ${camera.id}`);
+    setImageError(true);
+  };
+
   return (
     <div
       ref={cellRef}
@@ -105,7 +112,7 @@ export const VideoCell: React.FC<VideoCellProps> = ({
           <img
             src={streamUrl}
             alt={camera.name}
-            onError={() => setImageError(true)}
+            onError={handleImageError}
             className="w-full h-full object-contain"
           />
         ) : (
@@ -124,9 +131,13 @@ export const VideoCell: React.FC<VideoCellProps> = ({
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-rose-300">Câmera offline</p>
+                  <p className="text-sm font-bold text-rose-300">
+                    {isOnline && imageError ? 'Falha ao exibir o vídeo' : 'Câmera offline'}
+                  </p>
                   <p className="text-xs text-slate-400 max-w-xs mt-0.5">
-                    {status?.error_message || 'Não foi possível estabelecer fluxo de vídeo com o dispositivo.'}
+                    {isOnline && imageError
+                      ? 'O motor de vídeo está online, mas a imagem não carregou (servidor local de stream inacessível). Tente reconectar.'
+                      : status?.error_message || 'Não foi possível estabelecer fluxo de vídeo com o dispositivo.'}
                   </p>
                 </div>
                 <button

@@ -13,6 +13,7 @@ pub struct ClassificationContext<'a> {
     pub has_sadp: bool,
     pub sadp_model: Option<&'a str>,
     pub has_onvif: bool,
+    pub has_ssdp: bool,
     pub open_ports: &'a OpenPorts,
     pub http_fp: Option<&'a HttpFingerprint>,
     pub is_default_gateway: bool,
@@ -38,6 +39,7 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
 
     let mut score_camera: i32 = 0;
     let mut score_nvr: i32 = 0;
+    let mut score_dvr: i32 = 0;
     let mut score_intercom: i32 = 0;
     let mut score_ptz: i32 = 0;
     let mut score_traffic_lpr: i32 = 0;
@@ -52,6 +54,7 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
     let mut evidences_sw = Vec::new();
     let mut evidences_rtr = Vec::new();
     let mut evidences_nvr = Vec::new();
+    let mut evidences_dvr = Vec::new();
     let mut evidences_int = Vec::new();
     let mut evidences_cmp = Vec::new();
 
@@ -65,7 +68,7 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
     let oui_vendor = ctx.mac.and_then(ArpProvider::lookup_oui_vendor);
     if let Some(ref v) = oui_vendor {
         detected_brand = v.clone();
-        if v == "Hikvision" || v == "Dahua" || v == "Intelbras" || v == "Axis" {
+        if v == "Hikvision" || v == "Dahua" || v == "Intelbras" || v == "Axis" || v == "Uniview" || v == "Hanwha" {
             score_camera += 15;
             score_nvr += 15;
             score_intercom += 15;
@@ -119,6 +122,15 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
         }
     }
 
+    // 3b. SSDP/UPnP Evidence — a weak, generic signal on its own (many non-camera devices, e.g.
+    // smart TVs, printers, and routers, also speak SSDP), so it only nudges the score; it never
+    // overrides the "no RTSP/ONVIF/SADP/SDK port" penalty below on its own.
+    if ctx.has_ssdp {
+        score_camera += 10;
+        score_nvr += 8;
+        evidences_cam.push("+10 Resposta SSDP/UPnP (sinal fraco, complementar)".to_string());
+    }
+
     // 4. Hardware Model string checks (if present and specific)
     if !m.is_empty() && m != "IP CAMERA" && m != "HIKVISION IP DEVICE" && m != "CFTV DEVICE" {
         if m.starts_with("DS-2CD") || m.starts_with("DS-2CV") || m.starts_with("IDS-2CD")
@@ -128,9 +140,14 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
         } else if m.starts_with("DS-76") || m.starts_with("DS-77") || m.starts_with("DS-96")
             || m.starts_with("DS-71") || m.starts_with("DS-72") || m.starts_with("DS-73")
             || m.starts_with("DS-81") || m.starts_with("NVD") || m.starts_with("MHDX")
-            || m.starts_with("NVR") || m.starts_with("XVR") {
+            || m.starts_with("NVR") {
             score_nvr += 55;
-            evidences_nvr.push(format!("+55 Modelo específico de NVR/DVR ({})", ctx.hardware_model));
+            evidences_nvr.push(format!("+55 Modelo específico de NVR/Gravador ({})", ctx.hardware_model));
+        } else if m.starts_with("XVR") || m.starts_with("DVR") {
+            // Unambiguous vendor naming for hybrid/analog recorders (Dahua XVR, Intelbras/Hikvision DVR
+            // lines) — kept distinct from NVR so DeviceType::Dvr is actually reachable.
+            score_dvr += 55;
+            evidences_dvr.push(format!("+55 Modelo específico de DVR ({})", ctx.hardware_model));
         } else if m.starts_with("DS-KB") || m.starts_with("DS-KD") || m.starts_with("DS-KH")
             || m.starts_with("DS-KV") || m.starts_with("VTO") || m.starts_with("PVIP") || m.starts_with("ALLO") {
             score_intercom += 55;
@@ -154,6 +171,11 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
         score_nvr += 20;
         score_intercom += 20;
         evidences_cam.push("+25 Porta de Streaming RTSP 554 ativa".to_string());
+    }
+    if p.rtsp_8554 || p.rtsp_10554 {
+        score_camera += 20;
+        score_nvr += 15;
+        evidences_cam.push("+20 Porta de Streaming RTSP alternativa (8554/10554) ativa".to_string());
     }
     if p.hikvision_8000 {
         score_camera += 35;
@@ -256,6 +278,56 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
             detected_brand = "Hikvision".to_string();
             evidences_cam.push("+25 Interface Web CFTV Hikvision confirmada (/doc/index.html)".to_string());
         }
+        if fp.is_dahua {
+            score_camera += 25;
+            score_nvr += 20;
+            detected_brand = "Dahua".to_string();
+            evidences_cam.push("+25 Interface Web CFTV Dahua confirmada".to_string());
+        }
+        if fp.is_intelbras {
+            score_camera += 25;
+            score_nvr += 20;
+            detected_brand = "Intelbras".to_string();
+            evidences_cam.push("+25 Interface Web CFTV Intelbras confirmada".to_string());
+        }
+        if fp.is_axis {
+            score_camera += 25;
+            detected_brand = "Axis".to_string();
+            evidences_cam.push("+25 Interface Web CFTV Axis confirmada".to_string());
+        }
+        if fp.is_uniview {
+            score_camera += 25;
+            score_nvr += 20;
+            detected_brand = "Uniview".to_string();
+            evidences_cam.push("+25 Interface Web CFTV Uniview confirmada".to_string());
+        }
+        if fp.is_reolink {
+            score_camera += 25;
+            detected_brand = "Reolink".to_string();
+            evidences_cam.push("+25 Interface Web CFTV Reolink confirmada".to_string());
+        }
+        if fp.is_vivotek {
+            score_camera += 25;
+            detected_brand = "Vivotek".to_string();
+            evidences_cam.push("+25 Interface Web CFTV Vivotek confirmada".to_string());
+        }
+        if fp.is_bosch {
+            score_camera += 25;
+            score_nvr += 20;
+            detected_brand = "Bosch".to_string();
+            evidences_cam.push("+25 Interface Web CFTV Bosch confirmada".to_string());
+        }
+        if fp.is_hanwha {
+            score_camera += 25;
+            score_nvr += 20;
+            detected_brand = "Hanwha".to_string();
+            evidences_cam.push("+25 Interface Web CFTV Hanwha/Wisenet confirmada".to_string());
+        }
+        if fp.is_tplink {
+            score_camera += 25;
+            detected_brand = "TP-Link".to_string();
+            evidences_cam.push("+25 Interface Web CFTV TP-Link/VIGI confirmada".to_string());
+        }
     }
 
     // 7. Gateway check
@@ -270,7 +342,9 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
     if n.contains("PORTAO") || n.contains("INTERFONE") || n.contains("VIDEOPORTEIRO") {
         score_intercom += 30;
     }
-    if n.contains("NVR") || n.contains("GRAVADOR") {
+    if n.contains("DVR") || n.contains("XVR") {
+        score_dvr += 30;
+    } else if n.contains("NVR") || n.contains("GRAVADOR") {
         score_nvr += 30;
     }
     if n.contains("SWITCH") {
@@ -292,6 +366,7 @@ pub fn classify_device(ctx: &ClassificationContext) -> ClassificationResult {
         (DeviceType::Switch, score_switch, "Switch de Rede", evidences_sw),
         (DeviceType::Router, score_router, "Roteador", evidences_rtr),
         (DeviceType::Nvr, score_nvr, "NVR / Gravador", evidences_nvr),
+        (DeviceType::Dvr, score_dvr, "DVR / Gravador Digital", evidences_dvr),
         (DeviceType::Intercom, score_intercom, "Videoporteiro / Comunicação", evidences_int),
         (DeviceType::Ptz, score_ptz, "Câmera PTZ / Speed Dome", vec![]),
         (DeviceType::TrafficLpr, score_traffic_lpr, "Câmera de Tráfego / LPR", vec![]),

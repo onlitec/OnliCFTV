@@ -73,6 +73,7 @@ impl SadpProvider {
                             has_sadp: true,
                             sadp_model: Some(&record.model),
                             has_onvif: false,
+                            has_ssdp: false,
                             open_ports: &open_ports,
                             http_fp: None,
                             is_default_gateway: false,

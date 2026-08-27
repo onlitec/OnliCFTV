@@ -5,6 +5,8 @@ use tokio::net::TcpStream;
 pub struct OpenPorts {
     // CCTV Ports
     pub rtsp_554: bool,
+    pub rtsp_8554: bool,
+    pub rtsp_10554: bool,
     pub hikvision_8000: bool,
     pub dahua_37777: bool,
     pub http_80: bool,
@@ -31,14 +33,17 @@ impl TcpPortProvider {
     pub async fn check_all_ports(ip: &str) -> OpenPorts {
         let mut ports = OpenPorts::default();
 
-        // 1. Tier 1: Fast probe on primary LAN & CCTV ports (75ms timeout is plenty for local LAN)
-        let (p554, p8000, p80, p22, p53, p8080) = tokio::join!(
+        // 1. Tier 1: Fast probe on primary LAN & CCTV ports (75ms timeout is plenty for local LAN).
+        // 443 lives here (not tier 2) so a device whose only reachable service is an HTTPS admin UI
+        // isn't discarded as "offline" before it's ever probed.
+        let (p554, p8000, p80, p22, p53, p8080, p443) = tokio::join!(
             is_port_open(ip, 554, 75),
             is_port_open(ip, 8000, 75),
             is_port_open(ip, 80, 75),
             is_port_open(ip, 22, 75),
             is_port_open(ip, 53, 75),
-            is_port_open(ip, 8080, 75)
+            is_port_open(ip, 8080, 75),
+            is_port_open(ip, 443, 75)
         );
 
         ports.rtsp_554 = p554;
@@ -47,26 +52,29 @@ impl TcpPortProvider {
         ports.ssh_22 = p22;
         ports.dns_53 = p53;
         ports.http_8080 = p8080;
+        ports.https_443 = p443;
 
         // If no basic service responded, host is likely offline or inactive; skip deeper probe
-        if !p554 && !p8000 && !p80 && !p22 && !p53 && !p8080 {
+        if !p554 && !p8000 && !p80 && !p22 && !p53 && !p8080 && !p443 {
             return ports;
         }
 
         // 2. Tier 2: Responsive host -> probe secondary CCTV and infrastructure ports
-        let (p37777, p443, p445, p23, p161) = tokio::join!(
+        let (p37777, p445, p23, p161, p8554, p10554) = tokio::join!(
             is_port_open(ip, 37777, 75),
-            is_port_open(ip, 443, 75),
             is_port_open(ip, 445, 75),
             is_port_open(ip, 23, 75),
-            is_port_open(ip, 161, 75)
+            is_port_open(ip, 161, 75),
+            is_port_open(ip, 8554, 75),
+            is_port_open(ip, 10554, 75)
         );
 
         ports.dahua_37777 = p37777;
-        ports.https_443 = p443;
         ports.smb_445 = p445;
         ports.telnet_23 = p23;
         ports.snmp_161 = p161;
+        ports.rtsp_8554 = p8554;
+        ports.rtsp_10554 = p10554;
 
         // 3. Tier 3: If SSH/SMB/HTTP is open, check server databases
         if p22 || p445 || p80 {

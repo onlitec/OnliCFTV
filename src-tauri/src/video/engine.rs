@@ -1,9 +1,12 @@
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, watch, RwLock};
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use serde::{Serialize, Deserialize};
+
+use parking_lot::Mutex as SyncMutex;
 
 use crate::logging::logger::LogStore;
 
@@ -178,7 +181,11 @@ async fn run_camera_stream_worker(
         logger.log("INFO", "VideoEngine", &format!("Tentando conexão RTSP ({}) para câmera {}", reconnect_count + 1, camera_id));
 
         let ffmpeg_bin = crate::video::bin_locator::get_ffmpeg_path();
-        logger.log("INFO", "VideoEngine", &format!("Utilizando motor FFmpeg em: {}", ffmpeg_bin));
+        if Path::new(&ffmpeg_bin).is_file() {
+            logger.log("INFO", "VideoEngine", &format!("Utilizando motor FFmpeg em: {}", ffmpeg_bin));
+        } else {
+            logger.log("WARN", "VideoEngine", &format!("Binário FFmpeg não encontrado no bundle/local esperado; tentando resolver via PATH do sistema: {}", ffmpeg_bin));
+        }
 
         // Spawn FFmpeg to extract MJPEG frames via stdout pipe with low-latency flags
         let mut cmd = crate::video::bin_locator::create_hidden_command(&ffmpeg_bin);
@@ -226,6 +233,26 @@ async fn run_camera_stream_worker(
                 continue;
             }
         };
+
+        // Drain ffmpeg's stderr continuously so the pipe never fills and stalls the process;
+        // keep the last few lines around to surface the real reason on failure/disconnect.
+        let recent_stderr: Arc<SyncMutex<Vec<String>>> = Arc::new(SyncMutex::new(Vec::new()));
+        if let Some(stderr) = child.stderr.take() {
+            let recent_stderr_clone = recent_stderr.clone();
+            let logger_clone = logger.clone();
+            let cam_id_clone = camera_id.clone();
+            tokio::spawn(async move {
+                let mut lines = BufReader::new(stderr).lines();
+                while let Ok(Some(line)) = lines.next_line().await {
+                    logger_clone.log("WARN", "FFmpeg", &format!("[{}] {}", cam_id_clone, line));
+                    let mut buf = recent_stderr_clone.lock();
+                    buf.push(line);
+                    if buf.len() > 5 {
+                        buf.remove(0);
+                    }
+                }
+            });
+        }
 
         let mut buffer = Vec::with_capacity(65536);
         let mut temp_chunk = [0u8; 8192];
@@ -316,11 +343,16 @@ async fn run_camera_stream_worker(
 
         // Connection dropped or failed, update state to Offline and auto-reconnect
         {
+            let last_ffmpeg_lines = recent_stderr.lock().clone();
             let mut st = status.write().await;
             st.state = StreamState::Offline;
             st.fps = 0.0;
             st.bitrate_kbps = 0.0;
-            st.error_message = Some("Conexão perdida. Tentando reconectar...".to_string());
+            st.error_message = Some(if last_ffmpeg_lines.is_empty() {
+                "Conexão perdida. Tentando reconectar...".to_string()
+            } else {
+                format!("Conexão perdida. Tentando reconectar... (ffmpeg: {})", last_ffmpeg_lines.join(" | "))
+            });
         }
         reconnect_count += 1;
         logger.log("WARN", "VideoEngine", &format!("Câmera {} desconectada. Reconectando em 5 segundos (Tentativa {})...", camera_id, reconnect_count));

@@ -298,6 +298,39 @@ impl Database {
         let count = lock.execute("DELETE FROM cameras", []).map_err(|e| e.to_string())?;
         Ok(count)
     }
+
+    /// Caches credentials for a discovered (not necessarily registered) device by IP, so the
+    /// technician isn't asked to retype a password they already entered successfully once.
+    pub fn save_device_credentials(&self, ip: &str, username: &str, password: &str) -> Result<(), String> {
+        let now = Utc::now().to_rfc3339();
+        let password_encrypted = encrypt_password(password)?;
+
+        let lock = self.conn.lock().unwrap();
+        lock.execute(
+            "INSERT INTO device_credentials (ip, username, password_encrypted, updated_at)
+             VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(ip) DO UPDATE SET username = excluded.username, password_encrypted = excluded.password_encrypted, updated_at = excluded.updated_at",
+            params![ip, username, password_encrypted, now],
+        ).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    pub fn get_device_credentials(&self, ip: &str) -> Result<Option<(String, String)>, String> {
+        let lock = self.conn.lock().unwrap();
+        let mut stmt = lock.prepare(
+            "SELECT username, password_encrypted FROM device_credentials WHERE ip = ?1"
+        ).map_err(|e| e.to_string())?;
+
+        let mut rows = stmt.query(params![ip]).map_err(|e| e.to_string())?;
+        if let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            let username: String = row.get(0).map_err(|e| e.to_string())?;
+            let password_encrypted: String = row.get(1).map_err(|e| e.to_string())?;
+            let password = decrypt_password(&password_encrypted)?;
+            Ok(Some((username, password)))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 pub fn format_default_rtsp_url(host: &str, port: u16, profile: &str) -> String {

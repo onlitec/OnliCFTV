@@ -113,6 +113,7 @@ pub fn parse_onvif_xml(xml: &str, fallback_ip: String) -> Option<DiscoveredDevic
         has_sadp: false,
         sadp_model: None,
         has_onvif: true,
+        has_ssdp: false,
         open_ports: &open_ports,
         http_fp: None,
         is_default_gateway: false,
@@ -179,6 +180,18 @@ fn parse_onvif_scopes(scopes: &str, fallback_ip: &str) -> (String, String, Strin
         brand = "Dahua".to_string();
     } else if scopes_lower.contains("axis") {
         brand = "Axis".to_string();
+    } else if scopes_lower.contains("uniview") {
+        brand = "Uniview".to_string();
+    } else if scopes_lower.contains("reolink") {
+        brand = "Reolink".to_string();
+    } else if scopes_lower.contains("vivotek") {
+        brand = "Vivotek".to_string();
+    } else if scopes_lower.contains("bosch") {
+        brand = "Bosch".to_string();
+    } else if scopes_lower.contains("hanwha") || scopes_lower.contains("samsung techwin") {
+        brand = "Hanwha".to_string();
+    } else if scopes_lower.contains("tp-link") || scopes_lower.contains("vigi") {
+        brand = "TP-Link".to_string();
     }
 
     for item in scopes.split_whitespace() {

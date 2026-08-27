@@ -14,6 +14,7 @@ import type {
   QuickViewSessionInfo,
   QuickViewSetDeviceNameInput,
   QuickViewSetOsdInput,
+  CachedDeviceCredentials,
 } from '@/types';
 
 export const api = {
@@ -115,5 +116,9 @@ export const api = {
 
   async stopDevicePreview(ip: string): Promise<void> {
     return await invoke('stop_device_preview', { ip });
+  },
+
+  async getDeviceCredentials(ip: string): Promise<CachedDeviceCredentials | null> {
+    return await invoke('get_device_credentials', { ip });
   },
 };

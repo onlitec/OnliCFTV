@@ -167,6 +167,10 @@ impl CameraManager {
         // 1. Fetch ISAPI Device Info or fallback
         let (dev_name, model, serial, firmware, mac, brand) = match isapi_client.get_device_info().await {
             Ok(info) => {
+                // ISAPI auth succeeded with these credentials — safe to cache for reuse.
+                if let Err(e) = self.db.save_device_credentials(&host, &username, &password) {
+                    self.log_store.log("WARN", "QuickViewer", &format!("Falha ao salvar credenciais em cache para {}: {}", host, e));
+                }
                 (info.device_name, info.model, info.serial_number, info.firmware_version, info.mac_address, "Hikvision".to_string())
             }
             Err(e) => {
@@ -251,6 +255,9 @@ impl CameraManager {
         match isapi_client.set_device_name(new_name).await {
             Ok(_) => {
                 self.log_store.log("INFO", "Audit", &format!("Operação CHANGE_DEVICE_NAME realizada com sucesso no host {}", host));
+                if let Err(e) = self.db.save_device_credentials(host, username, &password) {
+                    self.log_store.log("WARN", "QuickViewer", &format!("Falha ao salvar credenciais em cache para {}: {}", host, e));
+                }
                 Ok(())
             }
             Err(e) => {
@@ -274,6 +281,9 @@ impl CameraManager {
         match isapi_client.set_osd_title(channel_id, new_osd).await {
             Ok(_) => {
                 self.log_store.log("INFO", "Audit", &format!("Operação CHANGE_OSD realizada com sucesso no host {}", host));
+                if let Err(e) = self.db.save_device_credentials(host, username, &password) {
+                    self.log_store.log("WARN", "QuickViewer", &format!("Falha ao salvar credenciais em cache para {}: {}", host, e));
+                }
                 Ok(())
             }
             Err(e) => {
@@ -299,13 +309,19 @@ impl CameraManager {
         let full_rtsp_url = build_authenticated_rtsp_url(&host, rtsp_port, &username, &password, channel_path);
 
         let session_id = format!("preview_{}", host.replace('.', "_"));
-        
+
         // Connect to stream in VideoEngine
         if let Err(_) = self.video_engine.connect(&session_id, &full_rtsp_url).await {
             // Fallback to main stream
             let main_path = isapi_client.discover_streaming_channel_url().await;
             let fallback_url = build_authenticated_rtsp_url(&host, rtsp_port, &username, &password, &main_path);
             self.video_engine.connect(&session_id, &fallback_url).await?;
+        }
+
+        // Cache the credentials the technician just typed for this device, so the next preview
+        // or Quick View session for the same IP doesn't require retyping the password.
+        if let Err(e) = self.db.save_device_credentials(&host, &username, &password) {
+            self.log_store.log("WARN", "DevicePreview", &format!("Falha ao salvar credenciais em cache para {}: {}", host, e));
         }
 
         let stream_url = format!("http://127.0.0.1:{}/stream/{}", self.video_engine.server_port(), session_id);
@@ -316,5 +332,10 @@ impl CameraManager {
         let session_id = format!("preview_{}", ip.trim().replace('.', "_"));
         self.video_engine.stop(&session_id).await.ok();
         Ok(())
+    }
+
+    pub fn get_cached_credentials(&self, ip: &str) -> Result<Option<CachedDeviceCredentials>, String> {
+        let cached = self.db.get_device_credentials(ip.trim())?;
+        Ok(cached.map(|(username, password)| CachedDeviceCredentials { username, password }))
     }
 }
