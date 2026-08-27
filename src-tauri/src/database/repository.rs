@@ -26,6 +26,11 @@ impl Database {
         
         conn.execute_batch(CREATE_TABLES_SQL)?;
 
+        // Lightweight migration for databases created before the `mac` column existed on
+        // device_credentials. CREATE TABLE IF NOT EXISTS above is a no-op on an existing table,
+        // so add the column here and ignore the "duplicate column" error when it's already present.
+        let _ = conn.execute("ALTER TABLE device_credentials ADD COLUMN mac TEXT", []);
+
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
@@ -299,38 +304,83 @@ impl Database {
         Ok(count)
     }
 
-    /// Caches credentials for a discovered (not necessarily registered) device by IP, so the
-    /// technician isn't asked to retype a password they already entered successfully once.
-    pub fn save_device_credentials(&self, ip: &str, username: &str, password: &str) -> Result<(), String> {
+    /// Caches credentials for a discovered (not necessarily registered) device by IP (and MAC when
+    /// known), so the technician isn't asked to retype a password they already entered successfully
+    /// once. Called only when the technician opts in via the "remember password" checkbox.
+    pub fn save_device_credentials(&self, ip: &str, mac: Option<&str>, username: &str, password: &str) -> Result<(), String> {
         let now = Utc::now().to_rfc3339();
         let password_encrypted = encrypt_password(password)?;
+        let mac_norm = mac.map(normalize_mac);
 
         let lock = self.conn.lock().unwrap();
         lock.execute(
-            "INSERT INTO device_credentials (ip, username, password_encrypted, updated_at)
-             VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT(ip) DO UPDATE SET username = excluded.username, password_encrypted = excluded.password_encrypted, updated_at = excluded.updated_at",
-            params![ip, username, password_encrypted, now],
+            "INSERT INTO device_credentials (ip, mac, username, password_encrypted, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(ip) DO UPDATE SET mac = excluded.mac, username = excluded.username, password_encrypted = excluded.password_encrypted, updated_at = excluded.updated_at",
+            params![ip, mac_norm, username, password_encrypted, now],
         ).map_err(|e| e.to_string())?;
         Ok(())
     }
 
-    pub fn get_device_credentials(&self, ip: &str) -> Result<Option<(String, String)>, String> {
+    /// Looks up cached credentials by IP first; if not found and a MAC is given, falls back to
+    /// matching by MAC — covers the case where the device's IP changed (DHCP) since it was saved.
+    pub fn get_device_credentials(&self, ip: &str, mac: Option<&str>) -> Result<Option<(String, String)>, String> {
         let lock = self.conn.lock().unwrap();
-        let mut stmt = lock.prepare(
-            "SELECT username, password_encrypted FROM device_credentials WHERE ip = ?1"
-        ).map_err(|e| e.to_string())?;
 
-        let mut rows = stmt.query(params![ip]).map_err(|e| e.to_string())?;
-        if let Some(row) = rows.next().map_err(|e| e.to_string())? {
-            let username: String = row.get(0).map_err(|e| e.to_string())?;
-            let password_encrypted: String = row.get(1).map_err(|e| e.to_string())?;
-            let password = decrypt_password(&password_encrypted)?;
-            Ok(Some((username, password)))
-        } else {
-            Ok(None)
+        let by_ip = {
+            let mut stmt = lock.prepare(
+                "SELECT username, password_encrypted FROM device_credentials WHERE ip = ?1"
+            ).map_err(|e| e.to_string())?;
+            let mut rows = stmt.query(params![ip]).map_err(|e| e.to_string())?;
+            match rows.next().map_err(|e| e.to_string())? {
+                Some(row) => Some((
+                    row.get::<_, String>(0).map_err(|e| e.to_string())?,
+                    row.get::<_, String>(1).map_err(|e| e.to_string())?,
+                )),
+                None => None,
+            }
+        };
+
+        let found = match (by_ip, mac) {
+            (Some(v), _) => Some(v),
+            (None, Some(mac_val)) => {
+                let mac_norm = normalize_mac(mac_val);
+                let mut stmt = lock.prepare(
+                    "SELECT username, password_encrypted FROM device_credentials WHERE mac = ?1 LIMIT 1"
+                ).map_err(|e| e.to_string())?;
+                let mut rows = stmt.query(params![mac_norm]).map_err(|e| e.to_string())?;
+                match rows.next().map_err(|e| e.to_string())? {
+                    Some(row) => Some((
+                        row.get::<_, String>(0).map_err(|e| e.to_string())?,
+                        row.get::<_, String>(1).map_err(|e| e.to_string())?,
+                    )),
+                    None => None,
+                }
+            }
+            (None, None) => None,
+        };
+
+        match found {
+            Some((username, password_encrypted)) => {
+                let password = decrypt_password(&password_encrypted)?;
+                Ok(Some((username, password)))
+            }
+            None => Ok(None),
         }
     }
+
+    /// Removes any cached credentials for the given IP — used when the technician unchecks
+    /// "remember password", or explicitly forgets a stale/incorrect saved password.
+    pub fn delete_device_credentials(&self, ip: &str) -> Result<(), String> {
+        let lock = self.conn.lock().unwrap();
+        lock.execute("DELETE FROM device_credentials WHERE ip = ?1", params![ip])
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+}
+
+fn normalize_mac(mac: &str) -> String {
+    mac.trim().to_uppercase()
 }
 
 pub fn format_default_rtsp_url(host: &str, port: u16, profile: &str) -> String {

@@ -155,10 +155,12 @@ impl CameraManager {
 impl CameraManager {
     pub async fn quick_view_connect(&self, input: QuickViewConnectInput) -> Result<QuickViewSessionInfo, String> {
         let host = input.ip.trim().to_string();
+        let mac_hint = input.mac.clone();
         let rtsp_port = input.rtsp_port.unwrap_or(554);
         let http_port = input.http_port.unwrap_or(80);
         let username = input.username.trim().to_string();
         let password = input.password.unwrap_or_default();
+        let remember_password = input.remember_password.unwrap_or(false);
 
         self.log_store.log("INFO", "QuickViewer", &format!("Autenticando sessão Quick View para dispositivo: {}", host));
 
@@ -167,10 +169,6 @@ impl CameraManager {
         // 1. Fetch ISAPI Device Info or fallback
         let (dev_name, model, serial, firmware, mac, brand) = match isapi_client.get_device_info().await {
             Ok(info) => {
-                // ISAPI auth succeeded with these credentials — safe to cache for reuse.
-                if let Err(e) = self.db.save_device_credentials(&host, &username, &password) {
-                    self.log_store.log("WARN", "QuickViewer", &format!("Falha ao salvar credenciais em cache para {}: {}", host, e));
-                }
                 (info.device_name, info.model, info.serial_number, info.firmware_version, info.mac_address, "Hikvision".to_string())
             }
             Err(e) => {
@@ -178,6 +176,17 @@ impl CameraManager {
                 (format!("Câmera {}", host), "Câmera IP".to_string(), None, None, None, "Câmera IP".to_string())
             }
         };
+
+        // Whether to cache this password is entirely up to the technician's "remember password"
+        // choice in the login window — this is the single place credentials get saved or forgotten.
+        let effective_mac = mac.clone().or_else(|| mac_hint.clone());
+        if remember_password {
+            if let Err(e) = self.db.save_device_credentials(&host, effective_mac.as_deref(), &username, &password) {
+                self.log_store.log("WARN", "QuickViewer", &format!("Falha ao salvar credenciais em cache para {}: {}", host, e));
+            }
+        } else if let Err(e) = self.db.delete_device_credentials(&host) {
+            self.log_store.log("WARN", "QuickViewer", &format!("Falha ao remover credenciais em cache para {}: {}", host, e));
+        }
 
         // 2. Fetch OSD
         let osd_text = isapi_client.get_osd_title(1).await.unwrap_or_default();
@@ -255,9 +264,6 @@ impl CameraManager {
         match isapi_client.set_device_name(new_name).await {
             Ok(_) => {
                 self.log_store.log("INFO", "Audit", &format!("Operação CHANGE_DEVICE_NAME realizada com sucesso no host {}", host));
-                if let Err(e) = self.db.save_device_credentials(host, username, &password) {
-                    self.log_store.log("WARN", "QuickViewer", &format!("Falha ao salvar credenciais em cache para {}: {}", host, e));
-                }
                 Ok(())
             }
             Err(e) => {
@@ -281,9 +287,6 @@ impl CameraManager {
         match isapi_client.set_osd_title(channel_id, new_osd).await {
             Ok(_) => {
                 self.log_store.log("INFO", "Audit", &format!("Operação CHANGE_OSD realizada com sucesso no host {}", host));
-                if let Err(e) = self.db.save_device_credentials(host, username, &password) {
-                    self.log_store.log("WARN", "QuickViewer", &format!("Falha ao salvar credenciais em cache para {}: {}", host, e));
-                }
                 Ok(())
             }
             Err(e) => {
@@ -301,9 +304,10 @@ impl CameraManager {
         let http_port = input.http_port.unwrap_or(80);
         let username = input.username.trim().to_string();
         let password = input.password.unwrap_or_default();
+        let remember_password = input.remember_password.unwrap_or(false);
 
         let isapi_client = IsapiClient::new(&host, http_port, &username, &password);
-        
+
         // Try substream first (102) for low-bandwidth thumbnail, fallback to main (101)
         let channel_path = "/Streaming/Channels/102";
         let full_rtsp_url = build_authenticated_rtsp_url(&host, rtsp_port, &username, &password, channel_path);
@@ -318,10 +322,10 @@ impl CameraManager {
             self.video_engine.connect(&session_id, &fallback_url).await?;
         }
 
-        // Cache the credentials the technician just typed for this device, so the next preview
-        // or Quick View session for the same IP doesn't require retyping the password.
-        if let Err(e) = self.db.save_device_credentials(&host, &username, &password) {
-            self.log_store.log("WARN", "DevicePreview", &format!("Falha ao salvar credenciais em cache para {}: {}", host, e));
+        if remember_password {
+            if let Err(e) = self.db.save_device_credentials(&host, input.mac.as_deref(), &username, &password) {
+                self.log_store.log("WARN", "DevicePreview", &format!("Falha ao salvar credenciais em cache para {}: {}", host, e));
+            }
         }
 
         let stream_url = format!("http://127.0.0.1:{}/stream/{}", self.video_engine.server_port(), session_id);
@@ -334,8 +338,15 @@ impl CameraManager {
         Ok(())
     }
 
-    pub fn get_cached_credentials(&self, ip: &str) -> Result<Option<CachedDeviceCredentials>, String> {
-        let cached = self.db.get_device_credentials(ip.trim())?;
+    pub fn get_cached_credentials(&self, ip: &str, mac: Option<&str>) -> Result<Option<CachedDeviceCredentials>, String> {
+        let cached = self.db.get_device_credentials(ip.trim(), mac)?;
         Ok(cached.map(|(username, password)| CachedDeviceCredentials { username, password }))
+    }
+
+    /// Forgets a saved password without requiring a successful authentication first — needed when
+    /// the cached password is stale/incorrect and the technician can't "connect" to trigger the
+    /// normal uncheck-and-reconnect forget flow.
+    pub fn forget_device_credentials(&self, ip: &str) -> Result<(), String> {
+        self.db.delete_device_credentials(ip.trim())
     }
 }

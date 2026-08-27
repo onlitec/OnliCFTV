@@ -17,6 +17,7 @@ import {
   Tv,
   Activity,
   PlusCircle,
+  Trash2,
 } from 'lucide-react';
 import type {
   DiscoveredDevice,
@@ -52,6 +53,9 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [rememberPassword, setRememberPassword] = useState(true);
+  const [hasCachedCredential, setHasCachedCredential] = useState(false);
+  const [isForgetting, setIsForgetting] = useState(false);
 
   // Session info
   const [session, setSession] = useState<QuickViewSessionInfo | null>(null);
@@ -69,8 +73,9 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
   const [isSavingOsd, setIsSavingOsd] = useState(false);
   const [osdSaveMsg, setOsdSaveMsg] = useState<{ success: boolean; text: string } | null>(null);
 
-  // Auto-fill credentials previously used successfully on this device, so the technician
-  // doesn't have to retype the password every time they reopen Quick View for the same IP.
+  // Auto-fill credentials previously saved for this device (by IP, falling back to MAC if the
+  // IP changed via DHCP), so the technician doesn't have to retype a password they already chose
+  // to remember.
   useEffect(() => {
     setStep('auth');
     setConnectError(null);
@@ -79,16 +84,32 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
     setNameSaveMsg(null);
     setOsdSaveMsg(null);
     setPassword('');
+    setRememberPassword(true);
+    setHasCachedCredential(false);
 
-    api.getDeviceCredentials(device.ip)
+    api.getDeviceCredentials(device.ip, device.mac)
       .then((cached) => {
         if (cached) {
           setUsername(cached.username);
           setPassword(cached.password);
+          setHasCachedCredential(true);
         }
       })
       .catch(console.error);
   }, [device]);
+
+  const handleForgetPassword = async () => {
+    setIsForgetting(true);
+    try {
+      await api.forgetDeviceCredentials(device.ip);
+      setPassword('');
+      setHasCachedCredential(false);
+    } catch (err) {
+      console.error('Falha ao esquecer senha salva:', err);
+    } finally {
+      setIsForgetting(false);
+    }
+  };
 
   // Handle Disconnect on modal close
   useEffect(() => {
@@ -107,10 +128,12 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
     try {
       const input: QuickViewConnectInput = {
         ip: device.ip,
+        mac: device.mac,
         rtsp_port: device.rtsp_port || 554,
         http_port: device.http_port || 80,
         username: username.trim() || 'admin',
         password: password || undefined,
+        remember_password: rememberPassword,
       };
 
       const res = await api.quickViewConnect(input);
@@ -119,6 +142,7 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
       setEditOsd(res.osd_text || '');
       setStep('view');
       setReloadKey(Date.now());
+      setHasCachedCredential(rememberPassword);
     } catch (err: any) {
       setConnectError(err?.toString() || 'Falha ao autenticar ou conectar no fluxo de vídeo');
     } finally {
@@ -304,6 +328,37 @@ export const QuickViewerModal: React.FC<QuickViewerModalProps> = ({
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+
+                  <div className="flex items-center justify-between gap-3 mt-2">
+                    <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 select-none cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={rememberPassword}
+                        onChange={(e) => setRememberPassword(e.target.checked)}
+                        className="rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sky-600 focus:ring-sky-500 h-3.5 w-3.5 cursor-pointer"
+                      />
+                      <span>Salvar esta senha para este dispositivo</span>
+                    </label>
+
+                    {hasCachedCredential && (
+                      <button
+                        type="button"
+                        onClick={handleForgetPassword}
+                        disabled={isForgetting}
+                        className="flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400 hover:underline disabled:opacity-50"
+                        title="Remover a senha salva para este dispositivo"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        <span>Esquecer</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {hasCachedCredential && (
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1.5">
+                      Senha salva para este dispositivo — preenchida automaticamente.
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-2 flex items-center justify-end gap-3">

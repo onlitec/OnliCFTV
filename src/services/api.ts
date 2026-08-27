@@ -118,7 +118,11 @@ export const api = {
     return await invoke('stop_device_preview', { ip });
   },
 
-  async getDeviceCredentials(ip: string): Promise<CachedDeviceCredentials | null> {
-    return await invoke('get_device_credentials', { ip });
+  async getDeviceCredentials(ip: string, mac?: string): Promise<CachedDeviceCredentials | null> {
+    return await invoke('get_device_credentials', { ip, mac });
+  },
+
+  async forgetDeviceCredentials(ip: string): Promise<void> {
+    return await invoke('forget_device_credentials', { ip });
   },
 };

@@ -168,10 +168,12 @@ export interface DeviceCapabilities {
 
 export interface QuickViewConnectInput {
   ip: string;
+  mac?: string;
   rtsp_port?: number;
   http_port?: number;
   username: string;
   password?: string;
+  remember_password?: boolean;
 }
 
 export interface QuickViewSetDeviceNameInput {

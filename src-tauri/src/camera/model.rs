@@ -75,10 +75,12 @@ pub use crate::camera::isapi::{DeviceCapabilities, UserPermission, IsapiDeviceIn
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuickViewConnectInput {
     pub ip: String,
+    pub mac: Option<String>,
     pub rtsp_port: Option<u16>,
     pub http_port: Option<u16>,
     pub username: String,
     pub password: Option<String>,
+    pub remember_password: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

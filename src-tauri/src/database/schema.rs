@@ -17,6 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_cameras_enabled ON cameras(enabled);
 
 CREATE TABLE IF NOT EXISTS device_credentials (
     ip TEXT PRIMARY KEY,
+    mac TEXT,
     username TEXT NOT NULL,
     password_encrypted TEXT NOT NULL,
     updated_at TEXT NOT NULL
