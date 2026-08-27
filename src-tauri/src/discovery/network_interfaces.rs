@@ -1,3 +1,4 @@
+#[cfg(not(target_os = "windows"))]
 use std::fs;
 use std::process::Command;
 use crate::discovery::types::NetworkInterfaceInfo;
@@ -6,67 +7,15 @@ pub struct NetworkInterfaceManager;
 
 impl NetworkInterfaceManager {
     pub fn get_interfaces() -> Vec<NetworkInterfaceInfo> {
-        let mut interfaces = Vec::new();
-
-        // 1. Get default gateway if on Linux
-        let default_gateway = get_linux_default_gateway();
-
-        // 2. Query ip -4 addr
-        if let Ok(output) = Command::new("ip").args(["-4", "addr"]).output() {
-            let text = String::from_utf8_lossy(&output.stdout);
-            let mut current_iface_name = String::new();
-
-            for line in text.lines() {
-                let trimmed = line.trim();
-                if !line.starts_with(' ') && !line.starts_with('\t') && line.contains(':') {
-                    let parts: Vec<&str> = line.split(':').collect();
-                    if parts.len() >= 2 {
-                        current_iface_name = parts[1].trim().to_string();
-                    }
-                } else if trimmed.starts_with("inet ") && !current_iface_name.is_empty() {
-                    let parts: Vec<&str> = trimmed.split_whitespace().collect();
-                    if parts.len() >= 2 {
-                        let cidr = parts[1];
-                        if let Some(slash_pos) = cidr.find('/') {
-                            let ip = cidr[..slash_pos].to_string();
-                            let prefix_len: u32 = cidr[slash_pos + 1..].parse().unwrap_or(24);
-
-                            if ip != "127.0.0.1" && !ip.starts_with("127.") {
-                                let mut broadcast = String::new();
-                                if let Some(brd_idx) = parts.iter().position(|&x| x == "brd") {
-                                    if brd_idx + 1 < parts.len() {
-                                        broadcast = parts[brd_idx + 1].to_string();
-                                    }
-                                }
-
-                                if broadcast.is_empty() {
-                                    broadcast = calculate_broadcast(&ip, prefix_len);
-                                }
-
-                                let netmask = calculate_netmask(prefix_len);
-                                let mac = get_mac_address(&current_iface_name);
-                                let is_def = default_gateway.is_some() && current_iface_name.starts_with('e');
-
-                                interfaces.push(NetworkInterfaceInfo {
-                                    id: current_iface_name.clone(),
-                                    name: get_friendly_interface_name(&current_iface_name),
-                                    ip,
-                                    netmask,
-                                    broadcast,
-                                    gateway: default_gateway.clone(),
-                                    mac,
-                                    is_up: true,
-                                    is_default: is_def,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        #[cfg(target_os = "windows")]
+        let mut interfaces = get_windows_interfaces();
+        #[cfg(not(target_os = "windows"))]
+        let mut interfaces = get_linux_interfaces();
 
         if interfaces.is_empty() {
-            // Fallback for standalone test environments
+            // Last-resort fallback only — if this fires, the active IP sweep will scan a subnet
+            // unrelated to the real network, so real interface detection above should never
+            // actually fail on a supported OS.
             interfaces.push(NetworkInterfaceInfo {
                 id: "eth0".to_string(),
                 name: "Ethernet (Padrão)".to_string(),
@@ -116,7 +65,153 @@ impl NetworkInterfaceManager {
     }
 }
 
-fn get_mac_address(iface_name: &str) -> Option<String> {
+#[cfg(not(target_os = "windows"))]
+fn get_linux_interfaces() -> Vec<NetworkInterfaceInfo> {
+    let mut interfaces = Vec::new();
+    let default_gateway = get_linux_default_gateway();
+
+    if let Ok(output) = Command::new("ip").args(["-4", "addr"]).output() {
+        let text = String::from_utf8_lossy(&output.stdout);
+        let mut current_iface_name = String::new();
+
+        for line in text.lines() {
+            let trimmed = line.trim();
+            if !line.starts_with(' ') && !line.starts_with('\t') && line.contains(':') {
+                let parts: Vec<&str> = line.split(':').collect();
+                if parts.len() >= 2 {
+                    current_iface_name = parts[1].trim().to_string();
+                }
+            } else if trimmed.starts_with("inet ") && !current_iface_name.is_empty() {
+                let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let cidr = parts[1];
+                    if let Some(slash_pos) = cidr.find('/') {
+                        let ip = cidr[..slash_pos].to_string();
+                        let prefix_len: u32 = cidr[slash_pos + 1..].parse().unwrap_or(24);
+
+                        if ip != "127.0.0.1" && !ip.starts_with("127.") {
+                            let mut broadcast = String::new();
+                            if let Some(brd_idx) = parts.iter().position(|&x| x == "brd") {
+                                if brd_idx + 1 < parts.len() {
+                                    broadcast = parts[brd_idx + 1].to_string();
+                                }
+                            }
+
+                            if broadcast.is_empty() {
+                                broadcast = calculate_broadcast(&ip, prefix_len);
+                            }
+
+                            let netmask = calculate_netmask(prefix_len);
+                            let mac = get_linux_mac_address(&current_iface_name);
+                            let is_def = default_gateway.is_some() && current_iface_name.starts_with('e');
+
+                            interfaces.push(NetworkInterfaceInfo {
+                                id: current_iface_name.clone(),
+                                name: get_friendly_interface_name(&current_iface_name),
+                                ip,
+                                netmask,
+                                broadcast,
+                                gateway: default_gateway.clone(),
+                                mac,
+                                is_up: true,
+                                is_default: is_def,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    interfaces
+}
+
+#[cfg(target_os = "windows")]
+fn get_windows_interfaces() -> Vec<NetworkInterfaceInfo> {
+    use std::os::windows::process::CommandExt;
+
+    // Ask PowerShell for every up IPv4-capable adapter, its addresses/prefix lengths, MAC, and the
+    // system's current default gateway, all in one call. ConvertTo-Json unwraps a single-element
+    // array into a bare object, so callers must accept either shape.
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let script = r#"
+$gw = Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object -Property RouteMetric | Select-Object -First 1 -ExpandProperty NextHop
+$out = @()
+Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
+    $adapter = $_
+    Get-NetIPAddress -InterfaceIndex $adapter.IfIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue | ForEach-Object {
+        if ($_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254.*') {
+            $out += [PSCustomObject]@{
+                Name = $adapter.InterfaceAlias
+                MacAddress = $adapter.MacAddress
+                IPAddress = $_.IPAddress
+                PrefixLength = $_.PrefixLength
+                Gateway = $gw
+            }
+        }
+    }
+}
+, $out | ConvertTo-Json -Compress
+"#;
+
+    let mut cmd = Command::new("powershell");
+    cmd.args(["-NoProfile", "-NonInteractive", "-Command", script]);
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let output = match cmd.output() {
+        Ok(o) => o,
+        Err(_) => return Vec::new(),
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = match serde_json::from_str(stdout.trim()) {
+        Ok(v) => v,
+        Err(_) => return Vec::new(),
+    };
+
+    let items: Vec<serde_json::Value> = match parsed {
+        serde_json::Value::Array(arr) => arr,
+        obj @ serde_json::Value::Object(_) => vec![obj],
+        _ => Vec::new(),
+    };
+
+    let mut interfaces = Vec::new();
+    for item in items {
+        let ip = match item.get("IPAddress").and_then(|v| v.as_str()) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => continue,
+        };
+        let prefix_len = item.get("PrefixLength").and_then(|v| v.as_u64()).unwrap_or(24) as u32;
+        let name = item.get("Name").and_then(|v| v.as_str()).unwrap_or("Ethernet").to_string();
+        let mac = item.get("MacAddress").and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_lowercase().replace('-', ":"));
+        let gateway = item.get("Gateway").and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+
+        let netmask = calculate_netmask(prefix_len);
+        let broadcast = calculate_broadcast(&ip, prefix_len);
+        let is_def = gateway.is_some();
+
+        interfaces.push(NetworkInterfaceInfo {
+            id: name.clone(),
+            name: format!("Ethernet ({})", name),
+            ip,
+            netmask,
+            broadcast,
+            gateway,
+            mac,
+            is_up: true,
+            is_default: is_def,
+        });
+    }
+
+    interfaces
+}
+
+#[cfg(not(target_os = "windows"))]
+fn get_linux_mac_address(iface_name: &str) -> Option<String> {
     let path = format!("/sys/class/net/{}/address", iface_name);
     if let Ok(content) = fs::read_to_string(path) {
         let mac = content.trim().to_string();
@@ -127,6 +222,7 @@ fn get_mac_address(iface_name: &str) -> Option<String> {
     None
 }
 
+#[cfg(not(target_os = "windows"))]
 fn get_linux_default_gateway() -> Option<String> {
     if let Ok(content) = fs::read_to_string("/proc/net/route") {
         for line in content.lines().skip(1) {
@@ -175,6 +271,7 @@ fn default_24_range(ip: &str) -> Vec<String> {
     (1..=254).map(|i| format!("{}.{}", prefix, i)).collect()
 }
 
+#[cfg(not(target_os = "windows"))]
 fn get_friendly_interface_name(name: &str) -> String {
     if name.starts_with('e') {
         format!("Ethernet ({})", name)

@@ -1,9 +1,11 @@
 use std::collections::HashMap;
+#[cfg(not(target_os = "windows"))]
 use std::fs;
 
 pub struct ArpProvider;
 
 impl ArpProvider {
+    #[cfg(not(target_os = "windows"))]
     pub fn get_arp_table() -> HashMap<String, String> {
         let mut map = HashMap::new();
 
@@ -15,6 +17,38 @@ impl ArpProvider {
                     let mac = parts[3].to_lowercase().replace('-', ":");
                     if mac != "00:00:00:00:00:00" && !mac.is_empty() {
                         map.insert(ip.to_string(), mac);
+                    }
+                }
+            }
+        }
+
+        map
+    }
+
+    /// Windows has no /proc/net/arp — shell out to the standard `arp -a` table dump instead.
+    /// Typical line: "  192.168.1.20          aa-bb-cc-dd-ee-ff     dynamic"
+    #[cfg(target_os = "windows")]
+    pub fn get_arp_table() -> HashMap<String, String> {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+        let mut map = HashMap::new();
+        let mut cmd = std::process::Command::new("arp");
+        cmd.args(["-a"]);
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        if let Ok(output) = cmd.output() {
+            let text = String::from_utf8_lossy(&output.stdout);
+            for line in text.lines() {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    let ip = parts[0];
+                    let mac_raw = parts[1];
+                    if ip.parse::<std::net::Ipv4Addr>().is_ok() && mac_raw.contains('-') {
+                        let mac = mac_raw.to_lowercase().replace('-', ":");
+                        if mac != "00:00:00:00:00:00" && mac.len() == 17 {
+                            map.insert(ip.to_string(), mac);
+                        }
                     }
                 }
             }

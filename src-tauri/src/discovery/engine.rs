@@ -65,9 +65,11 @@ impl DiscoveryEngine {
         });
 
         let (sadp_devices, onvif_devices, ssdp_devices) = tokio::join!(
-            SadpProvider::probe(&broadcast_targets, Duration::from_millis(800)),
-            OnvifProvider::probe(&broadcast_targets, Duration::from_millis(800)),
-            SsdpProvider::probe(&broadcast_targets, Duration::from_millis(800))
+            // 2000ms (was 800ms) — on networks with 100+ devices all replying to the same
+            // broadcast probe, a short window risks losing responses to socket buffer pressure.
+            SadpProvider::probe(&broadcast_targets, Duration::from_millis(2000)),
+            OnvifProvider::probe(&broadcast_targets, Duration::from_millis(2000)),
+            SsdpProvider::probe(&broadcast_targets, Duration::from_millis(2000))
         );
 
         for dev in sadp_devices {
@@ -83,7 +85,10 @@ impl DiscoveryEngine {
         // Phase 3: Active Subnet Sweep with Bounded Concurrency (65%)
         // Uses the interface's real netmask (falls back to /24 for unparseable/oversized masks)
         // instead of assuming every network is a /24.
-        let host_ips = NetworkInterfaceManager::host_ips_in_subnet(&selected_iface.ip, &selected_iface.netmask, 1024);
+        // Cap raised from 1024 to 4096 (covers up to a /20) — camera VLANs in larger deployments
+        // commonly exceed a /22's 1022 usable hosts, and 48-worker bounded concurrency handles a
+        // 4096-host sweep in well under a minute.
+        let host_ips = NetworkInterfaceManager::host_ips_in_subnet(&selected_iface.ip, &selected_iface.netmask, 4096);
 
         progress_callback(DiscoveryProgress {
             percentage: 65,
