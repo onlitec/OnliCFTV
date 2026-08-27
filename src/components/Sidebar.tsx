@@ -7,9 +7,10 @@ import {
   Shield,
   Bell,
   HardDrive,
+  Activity,
 } from 'lucide-react';
 
-export type NavTab = 'dashboard' | 'cameras' | 'live' | 'events' | 'recordings' | 'settings';
+export type NavTab = 'dashboard' | 'cameras' | 'live' | 'events' | 'recordings' | 'diagnostics' | 'settings';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -50,6 +51,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'recordings',
       label: 'Gravações & Playback',
       icon: <HardDrive className="h-4 w-4" />,
+    },
+    {
+      id: 'diagnostics',
+      label: 'Diagnóstico',
+      icon: <Activity className="h-4 w-4" />,
     },
     {
       id: 'settings',

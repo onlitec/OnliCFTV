@@ -5,6 +5,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { CameraModal } from '@/cameras/CameraModal';
 import { LiveView } from '@/video/LiveView';
 import { SettingsPage } from '@/settings/SettingsPage';
+import { DiagnosticsPage } from '@/diagnostics/DiagnosticsPage';
 
 import type {
   Camera,
@@ -186,6 +187,10 @@ export const App: React.FC = () => {
       title: 'Gravações & Playback',
       subtitle: 'Reprodução de imagens e exportação de evidências',
     },
+    diagnostics: {
+      title: 'Diagnóstico e Telemetria Técnica',
+      subtitle: 'Logs estruturados, status de streams RTSP e inspeção técnica em tempo real',
+    },
     settings: {
       title: 'Configurações do OnliView',
       subtitle: 'Banco de dados SQLite, portas e parâmetros locais',
@@ -261,6 +266,14 @@ export const App: React.FC = () => {
             serverPort={serverPort}
             selectedCameraId={selectedLiveCameraId}
             onBackToDashboard={() => setCurrentTab('dashboard')}
+          />
+        )}
+
+        {currentTab === 'diagnostics' && (
+          <DiagnosticsPage
+            cameras={cameras}
+            streamStatuses={streamStatuses}
+            serverPort={serverPort}
           />
         )}
 
