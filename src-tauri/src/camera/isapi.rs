@@ -11,6 +11,10 @@ use uuid::Uuid;
 
 use crate::discovery::providers::sadp::extract_xml_tag;
 
+fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    haystack.windows(needle.len()).position(|w| w == needle)
+}
+
 /// Extracts the <name> value scoped to <channelNameOverlay>, instead of the first <name> tag
 /// anywhere in the VideoOverlay document (which may belong to an unrelated overlay slot).
 fn extract_channel_name_overlay_value(xml: &str) -> Option<String> {
@@ -237,14 +241,49 @@ impl IsapiClient {
         stream.write_all(req.as_bytes()).await
             .map_err(|e| format!("Erro ao enviar requisição HTTP: {}", e))?;
 
-        let mut buf = Vec::with_capacity(16384);
+        // Read until we know the full body has arrived (via Content-Length) rather than relying
+        // solely on connection-close/timeout — some device firmwares trickle out larger XML
+        // documents (e.g. VideoOverlay with several overlay slots) slowly enough that a short
+        // per-read timeout or an undersized safety cap silently truncates the body mid-document,
+        // which then looks like "the expected XML tag isn't there" to callers.
+        let mut buf: Vec<u8> = Vec::with_capacity(16384);
         let mut temp = [0u8; 4096];
+        let mut headers_end: Option<usize> = None;
+        let mut content_length: Option<usize> = None;
+        let read_deadline = tokio::time::Instant::now() + Duration::from_millis(5000);
 
         loop {
-            match tokio::time::timeout(Duration::from_millis(3000), stream.read(&mut temp)).await {
+            let remaining = read_deadline.saturating_duration_since(tokio::time::Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+
+            match tokio::time::timeout(remaining, stream.read(&mut temp)).await {
                 Ok(Ok(n)) if n > 0 => {
                     buf.extend_from_slice(&temp[..n]);
-                    if buf.len() > 65536 {
+
+                    if headers_end.is_none() {
+                        if let Some(pos) = find_bytes(&buf, b"\r\n\r\n") {
+                            headers_end = Some(pos + 4);
+                            let header_str = String::from_utf8_lossy(&buf[..pos]);
+                            content_length = header_str.lines().find_map(|line| {
+                                let (key, val) = line.split_once(':')?;
+                                if key.trim().eq_ignore_ascii_case("content-length") {
+                                    val.trim().parse::<usize>().ok()
+                                } else {
+                                    None
+                                }
+                            });
+                        }
+                    }
+
+                    if let (Some(h_end), Some(clen)) = (headers_end, content_length) {
+                        if buf.len() >= h_end + clen {
+                            break;
+                        }
+                    }
+
+                    if buf.len() > 1_048_576 {
                         break;
                     }
                 }
@@ -296,10 +335,30 @@ impl IsapiClient {
     }
 
     pub async fn set_device_name(&self, new_name: &str) -> Result<(), String> {
-        let xml = format!(
-            r#"<?xml version="1.0" encoding="UTF-8"?><DeviceInfo xmlns="http://www.hikvision.com/ver20/XMLSchema" version="2.0"><deviceName>{}</deviceName></DeviceInfo>"#,
-            new_name
-        );
+        let escaped_name = xml_escape(new_name);
+
+        // Some firmwares reject a minimal partial DeviceInfo PUT (missing required fields like
+        // <deviceID>, "MessageParametersLack"), so fetch the current full document and patch just
+        // <deviceName> in place instead of constructing a new document from scratch.
+        let xml = match self.http_request("GET", "/ISAPI/System/deviceInfo", None).await {
+            Ok((200, current)) => {
+                if let Some(start) = current.find("<deviceName>") {
+                    if let Some(end) = current[start..].find("</deviceName>") {
+                        let before = &current[..start + "<deviceName>".len()];
+                        let after = &current[start + end..];
+                        format!("{}{}{}", before, escaped_name, after)
+                    } else {
+                        current
+                    }
+                } else {
+                    current
+                }
+            }
+            _ => format!(
+                r#"<?xml version="1.0" encoding="UTF-8"?><DeviceInfo xmlns="http://www.hikvision.com/ver20/XMLSchema" version="2.0"><deviceName>{}</deviceName></DeviceInfo>"#,
+                escaped_name
+            ),
+        };
 
         let (code, body) = self.http_request("PUT", "/ISAPI/System/deviceInfo", Some(&xml)).await?;
         if code == 200 || body.contains("<statusValue>200</statusValue>") || body.contains("<statusValue>1</statusValue>") || body.contains("OK") {
@@ -307,7 +366,7 @@ impl IsapiClient {
         } else if code == 403 || body.contains("403") {
             Err("Usuário autenticado sem permissão para alterar o nome do dispositivo".to_string())
         } else {
-            Err(format!("Falha ao alterar Device Name (HTTP {}): {}", code, body))
+            Err(format!("Falha ao alterar Device Name (HTTP {}): {}", code, body.chars().take(300).collect::<String>()))
         }
     }
 
@@ -408,7 +467,7 @@ impl IsapiClient {
                     return Err(format!(
                         "Não foi possível localizar o campo de nome do overlay no XML retornado pelo dispositivo (canal {}): {}",
                         channel_id,
-                        current_ov.chars().take(400).collect::<String>()
+                        current_ov.chars().take(900).collect::<String>()
                     ));
                 }
 
@@ -435,11 +494,11 @@ impl IsapiClient {
                         Some(applied) => Err(format!(
                             "Dispositivo aceitou a gravação, mas o OSD não foi atualizado (valor atual: '{}'). XML retornado: {}",
                             applied,
-                            verify_body.chars().take(400).collect::<String>()
+                            verify_body.chars().take(900).collect::<String>()
                         )),
                         None => Err(format!(
                             "OSD gravado, mas não foi possível confirmar o valor aplicado no dispositivo. XML retornado: {}",
-                            verify_body.chars().take(400).collect::<String>()
+                            verify_body.chars().take(900).collect::<String>()
                         )),
                     },
                     _ => Err("OSD gravado, mas falha ao verificar aplicação no dispositivo".to_string()),

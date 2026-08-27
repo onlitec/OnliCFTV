@@ -1,6 +1,6 @@
 [package]
 name = "onliview"
-version = "0.1.4"
+version = "0.1.5"
 description = "OnliView - VMS & Camera Management Desktop Application"
 authors = ["Onlitec"]
 edition = "2021"
