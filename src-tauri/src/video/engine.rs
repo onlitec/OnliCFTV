@@ -201,7 +201,11 @@ async fn run_camera_stream_worker(
                 "-hide_banner",
                 "-loglevel", "warning",
                 "-rtsp_transport", transport,
-                "-stimeout", "6000000",
+                // Socket I/O timeout em microssegundos. A opção correta é `-timeout`:
+                // `-stimeout` foi removida no FFmpeg 7/8 (o binário embutido em
+                // resources/ffmpeg.exe), fazendo o processo abortar no parsing dos
+                // argumentos antes de abrir qualquer socket RTSP.
+                "-timeout", "6000000",
                 "-fflags", "+nobuffer+discardcorrupt+genpts",
                 "-flags", "low_delay",
                 "-max_delay", "500000",
@@ -268,6 +272,7 @@ async fn run_camera_stream_worker(
         let mut bytes_count = 0usize;
         let mut fps_timer = Instant::now();
         let mut is_first_frame = true;
+        let session_start = Instant::now();
 
         loop {
             tokio::select! {
@@ -344,23 +349,51 @@ async fn run_camera_stream_worker(
         }
 
         let _ = child.kill().await;
+        let ran_for = session_start.elapsed();
 
         if *cancel_rx.borrow() {
             break;
         }
 
-        // Connection dropped or failed, update state to Offline and auto-reconnect
+        // O FFmpeg escreve o motivo real da falha no stderr, drenado por uma task
+        // separada. Dá a ela uma janela para esvaziar o pipe antes de lermos as
+        // últimas linhas — sem isso, uma falha imediata (ex.: argumento inválido,
+        // que aborta em ~70ms) chega aqui com o buffer ainda vazio e vira uma
+        // mensagem genérica de "conexão perdida".
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let last_ffmpeg_lines = recent_stderr.lock().clone();
+        let ffmpeg_reason = last_ffmpeg_lines.join(" | ");
+
+        // Morrer sem nunca entregar um frame e em menos de 2s não é queda de rede:
+        // é o FFmpeg abortando na inicialização (argumento inválido, binário
+        // incompatível, URL malformada). Reconectar não resolve, então registra
+        // como ERROR para o motivo aparecer no Diagnóstico.
+        let failed_to_start = is_first_frame && ran_for < Duration::from_secs(2);
+
         {
-            let last_ffmpeg_lines = recent_stderr.lock().clone();
             let mut st = status.write().await;
-            st.state = StreamState::Offline;
+            st.state = if failed_to_start { StreamState::Error } else { StreamState::Offline };
             st.fps = 0.0;
             st.bitrate_kbps = 0.0;
-            st.error_message = Some(if last_ffmpeg_lines.is_empty() {
+            st.error_message = Some(if failed_to_start {
+                format!(
+                    "Falha ao inicializar o motor de vídeo{}",
+                    if ffmpeg_reason.is_empty() { String::new() } else { format!(" (ffmpeg: {})", ffmpeg_reason) }
+                )
+            } else if ffmpeg_reason.is_empty() {
                 "Conexão perdida. Tentando reconectar...".to_string()
             } else {
-                format!("Conexão perdida. Tentando reconectar... (ffmpeg: {})", last_ffmpeg_lines.join(" | "))
+                format!("Conexão perdida. Tentando reconectar... (ffmpeg: {})", ffmpeg_reason)
             });
+        }
+
+        if failed_to_start {
+            logger.log("ERROR", "VideoEngine", &format!(
+                "FFmpeg encerrou em {}ms sem produzir vídeo para a câmera {} — falha de inicialização, não de rede. Motivo: {}",
+                ran_for.as_millis(),
+                camera_id,
+                if ffmpeg_reason.is_empty() { "não informado pelo ffmpeg" } else { &ffmpeg_reason }
+            ));
         }
         reconnect_count += 1;
         logger.log("WARN", "VideoEngine", &format!("Câmera {} desconectada. Reconectando em 5 segundos (Tentativa {})...", camera_id, reconnect_count));

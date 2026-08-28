@@ -1,0 +1,459 @@
+27/08/2026, 19:47:45 [INFO] [App] Inicializando OnliView VMS Engine
+27/08/2026, 19:47:45 [INFO] [Discovery] Iniciando Descoberta Inteligente Multicamada na interface: Padrão
+27/08/2026, 19:47:47 [INFO] [Discovery] [Progresso 5%] Interface selecionada: Ethernet (vEthernet (Broadcom 5720 1GbE RJ45 2-Port PCIe Ethernet LOM #2 - Virtual Switch)) (vEthernet (Broadcom 5720 1GbE RJ45 2-Port PCIe Ethernet LOM #2 - Virtual Switch)) — IP 10.10.1.254 / máscara 255.255.255.0 / gateway 10.10.1.1 — 1 interface(s) detectada(s) no total
+27/08/2026, 19:47:47 [INFO] [Discovery] [Progresso 10%] Consultando tabela ARP e vizinhos de rede...
+27/08/2026, 19:47:47 [INFO] [Discovery] [Progresso 30%] Enviando sondas ONVIF WS-Discovery, Hikvision SADP e SSDP/UPnP...
+27/08/2026, 19:47:49 [INFO] [Discovery] [Progresso 65%] Varrendo 254 endereços na rede 10.10.1.254/255.255.255.0...
+27/08/2026, 19:47:50 [INFO] [Discovery] [Progresso 85%] Coletando assinaturas HTTP e títulos de serviços...
+27/08/2026, 19:47:50 [INFO] [Discovery] [Progresso 100%] Classificação por evidências concluída!
+27/08/2026, 19:47:50 [INFO] [Discovery] Descoberta concluída: 188 dispositivos localizados e diagnosticados
+27/08/2026, 19:47:55 [INFO] [QuickViewer] Autenticando sessão Quick View para dispositivo: 10.10.1.10
+27/08/2026, 19:47:55 [INFO] [VideoEngine] Iniciando stream para câmera quick_view_10_10_1_10: rtsp://admin:***@10.10.1.10:554/Streaming/Channels/102
+27/08/2026, 19:47:56 [INFO] [VideoEngine] Tentando conexão RTSP (1) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:47:56 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:47:56 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:47:56 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:47:56 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 1)...
+27/08/2026, 19:47:57 [INFO] [QuickViewer] Sessão Quick View estabelecida com sucesso para 10.10.1.10
+27/08/2026, 19:48:01 [INFO] [VideoEngine] Tentando conexão RTSP (2) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:01 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:01 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:01 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:01 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 2)...
+27/08/2026, 19:48:06 [INFO] [VideoEngine] Tentando conexão RTSP (3) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:06 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:06 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:06 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:06 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 3)...
+27/08/2026, 19:48:11 [INFO] [VideoEngine] Tentando conexão RTSP (4) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:11 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:11 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:11 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:11 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 4)...
+27/08/2026, 19:48:16 [INFO] [VideoEngine] Tentando conexão RTSP (5) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:16 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:16 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:16 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:16 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 5)...
+27/08/2026, 19:48:16 [INFO] [QuickViewer] Autenticando sessão Quick View para dispositivo: 10.10.1.107
+27/08/2026, 19:48:19 [WARN] [QuickViewer] ISAPI deviceInfo não disponível (Tempo limite de conexão esgotado (Timeout ao conectar na porta HTTP)), tentando modo direto RTSP
+27/08/2026, 19:48:21 [INFO] [VideoEngine] Tentando conexão RTSP (6) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:21 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:21 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:21 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:21 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 6)...
+27/08/2026, 19:48:26 [INFO] [VideoEngine] Tentando conexão RTSP (7) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:26 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:26 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:26 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 7)...
+27/08/2026, 19:48:27 [INFO] [QuickViewer] Autenticando sessão Quick View para dispositivo: 10.10.1.112
+27/08/2026, 19:48:27 [INFO] [VideoEngine] Iniciando stream para câmera quick_view_10_10_1_112: rtsp://admin:***@10.10.1.112:554/Streaming/Channels/102
+27/08/2026, 19:48:27 [INFO] [VideoEngine] Tentando conexão RTSP (1) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:48:27 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:27 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:27 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:48:27 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 1)...
+27/08/2026, 19:48:28 [INFO] [QuickViewer] Sessão Quick View estabelecida com sucesso para 10.10.1.112
+27/08/2026, 19:48:31 [INFO] [VideoEngine] Tentando conexão RTSP (8) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:31 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:31 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:31 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:31 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 8)...
+27/08/2026, 19:48:32 [INFO] [VideoEngine] Tentando conexão RTSP (2) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:48:32 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:32 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:32 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:48:32 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 2)...
+27/08/2026, 19:48:36 [INFO] [VideoEngine] Tentando conexão RTSP (9) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:36 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:36 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:36 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:36 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 9)...
+27/08/2026, 19:48:37 [INFO] [VideoEngine] Tentando conexão RTSP (3) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:48:37 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:37 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:37 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:48:37 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 3)...
+27/08/2026, 19:48:40 [INFO] [VideoEngine] Iniciando stream para câmera quick_view_10_10_1_107: rtsp://admin:***@10.10.1.107:554/Streaming/Channels/102
+27/08/2026, 19:48:40 [INFO] [VideoEngine] Tentando conexão RTSP (1) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:48:40 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:40 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:40 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:48:40 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 1)...
+27/08/2026, 19:48:41 [INFO] [VideoEngine] Tentando conexão RTSP (10) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:41 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:42 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:42 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:42 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 10)...
+27/08/2026, 19:48:42 [INFO] [QuickViewer] Sessão Quick View estabelecida com sucesso para 10.10.1.107
+27/08/2026, 19:48:42 [INFO] [VideoEngine] Tentando conexão RTSP (4) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:48:42 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:42 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:42 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:48:42 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 4)...
+27/08/2026, 19:48:45 [INFO] [VideoEngine] Tentando conexão RTSP (2) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:48:45 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:45 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:45 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:48:45 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 2)...
+27/08/2026, 19:48:47 [INFO] [VideoEngine] Tentando conexão RTSP (11) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:47 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:47 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:47 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:47 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 11)...
+27/08/2026, 19:48:47 [INFO] [VideoEngine] Tentando conexão RTSP (5) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:48:47 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:47 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:47 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:48:47 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 5)...
+27/08/2026, 19:48:50 [INFO] [VideoEngine] Tentando conexão RTSP (3) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:48:50 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:50 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:50 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:48:50 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 3)...
+27/08/2026, 19:48:52 [INFO] [VideoEngine] Tentando conexão RTSP (12) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:52 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:52 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:52 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:52 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 12)...
+27/08/2026, 19:48:52 [INFO] [VideoEngine] Tentando conexão RTSP (6) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:48:52 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:52 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:52 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:48:52 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 6)...
+27/08/2026, 19:48:55 [INFO] [VideoEngine] Tentando conexão RTSP (4) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:48:55 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:55 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:55 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:48:56 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 4)...
+27/08/2026, 19:48:57 [INFO] [VideoEngine] Tentando conexão RTSP (13) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:48:57 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:57 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:57 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:48:57 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 13)...
+27/08/2026, 19:48:57 [INFO] [VideoEngine] Tentando conexão RTSP (7) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:48:57 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:48:57 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:48:57 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:48:57 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 7)...
+27/08/2026, 19:49:01 [INFO] [VideoEngine] Tentando conexão RTSP (5) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:01 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:01 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:01 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:01 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 5)...
+27/08/2026, 19:49:02 [INFO] [VideoEngine] Tentando conexão RTSP (14) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:02 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:02 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:02 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:02 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 14)...
+27/08/2026, 19:49:02 [INFO] [VideoEngine] Tentando conexão RTSP (8) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:02 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:03 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:03 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:03 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 8)...
+27/08/2026, 19:49:06 [INFO] [VideoEngine] Tentando conexão RTSP (6) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:06 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:06 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:06 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:06 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 6)...
+27/08/2026, 19:49:07 [INFO] [VideoEngine] Tentando conexão RTSP (15) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:07 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:07 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:07 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:07 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 15)...
+27/08/2026, 19:49:08 [INFO] [VideoEngine] Tentando conexão RTSP (9) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:08 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:08 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:08 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:08 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 9)...
+27/08/2026, 19:49:11 [INFO] [VideoEngine] Tentando conexão RTSP (7) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:11 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:11 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:11 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:11 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 7)...
+27/08/2026, 19:49:12 [INFO] [VideoEngine] Tentando conexão RTSP (16) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:12 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:12 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:12 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:12 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 16)...
+27/08/2026, 19:49:13 [INFO] [VideoEngine] Tentando conexão RTSP (10) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:13 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:13 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:13 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:13 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 10)...
+27/08/2026, 19:49:16 [INFO] [VideoEngine] Tentando conexão RTSP (8) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:16 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:16 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:16 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:16 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 8)...
+27/08/2026, 19:49:17 [INFO] [VideoEngine] Tentando conexão RTSP (17) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:17 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:17 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:17 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:17 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 17)...
+27/08/2026, 19:49:18 [INFO] [VideoEngine] Tentando conexão RTSP (11) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:18 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:18 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:18 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:18 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 11)...
+27/08/2026, 19:49:21 [INFO] [VideoEngine] Tentando conexão RTSP (9) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:21 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:21 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:21 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:21 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 9)...
+27/08/2026, 19:49:22 [INFO] [VideoEngine] Tentando conexão RTSP (18) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:22 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:22 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:22 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:22 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 18)...
+27/08/2026, 19:49:23 [INFO] [VideoEngine] Tentando conexão RTSP (12) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:23 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:23 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:23 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:23 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 12)...
+27/08/2026, 19:49:26 [INFO] [VideoEngine] Tentando conexão RTSP (10) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:26 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:26 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:26 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:26 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 10)...
+27/08/2026, 19:49:27 [INFO] [VideoEngine] Tentando conexão RTSP (19) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:27 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:27 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 19)...
+27/08/2026, 19:49:28 [INFO] [VideoEngine] Tentando conexão RTSP (13) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:28 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:28 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:28 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:28 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 13)...
+27/08/2026, 19:49:31 [INFO] [VideoEngine] Tentando conexão RTSP (11) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:31 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:31 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:31 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:31 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 11)...
+27/08/2026, 19:49:32 [INFO] [VideoEngine] Tentando conexão RTSP (20) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:32 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:32 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:32 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:32 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 20)...
+27/08/2026, 19:49:33 [INFO] [VideoEngine] Tentando conexão RTSP (14) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:33 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:33 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:33 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:33 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 14)...
+27/08/2026, 19:49:36 [INFO] [VideoEngine] Tentando conexão RTSP (12) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:36 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:36 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:36 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:36 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 12)...
+27/08/2026, 19:49:37 [INFO] [VideoEngine] Tentando conexão RTSP (21) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:37 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:37 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:37 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:37 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 21)...
+27/08/2026, 19:49:38 [INFO] [VideoEngine] Tentando conexão RTSP (15) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:38 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:38 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:38 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:38 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 15)...
+27/08/2026, 19:49:41 [INFO] [VideoEngine] Tentando conexão RTSP (13) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:41 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:41 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:41 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:41 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 13)...
+27/08/2026, 19:49:42 [INFO] [VideoEngine] Tentando conexão RTSP (22) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:42 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:42 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:42 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:42 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 22)...
+27/08/2026, 19:49:43 [INFO] [VideoEngine] Tentando conexão RTSP (16) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:43 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:43 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:43 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:43 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 16)...
+27/08/2026, 19:49:46 [INFO] [VideoEngine] Tentando conexão RTSP (14) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:46 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:46 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:46 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:46 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 14)...
+27/08/2026, 19:49:47 [INFO] [VideoEngine] Tentando conexão RTSP (23) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:47 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:47 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:47 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:47 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 23)...
+27/08/2026, 19:49:48 [INFO] [VideoEngine] Tentando conexão RTSP (17) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:48 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:48 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:48 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:48 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 17)...
+27/08/2026, 19:49:51 [INFO] [VideoEngine] Tentando conexão RTSP (15) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:51 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:51 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:51 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:51 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 15)...
+27/08/2026, 19:49:52 [INFO] [VideoEngine] Tentando conexão RTSP (24) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:52 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:52 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:52 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:52 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 24)...
+27/08/2026, 19:49:53 [INFO] [VideoEngine] Tentando conexão RTSP (18) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:53 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:53 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:53 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:53 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 18)...
+27/08/2026, 19:49:56 [INFO] [VideoEngine] Tentando conexão RTSP (16) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:49:56 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:56 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:56 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:49:56 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 16)...
+27/08/2026, 19:49:57 [INFO] [VideoEngine] Tentando conexão RTSP (25) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:49:57 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:57 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:57 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:49:57 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 25)...
+27/08/2026, 19:49:58 [INFO] [VideoEngine] Tentando conexão RTSP (19) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:49:58 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:49:58 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:49:58 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:49:58 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 19)...
+27/08/2026, 19:50:01 [INFO] [VideoEngine] Tentando conexão RTSP (17) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:50:01 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:01 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:01 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:50:01 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 17)...
+27/08/2026, 19:50:02 [INFO] [VideoEngine] Tentando conexão RTSP (26) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:50:02 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:02 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:02 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:50:02 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 26)...
+27/08/2026, 19:50:03 [INFO] [VideoEngine] Tentando conexão RTSP (20) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:50:03 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:03 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:03 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:50:03 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 20)...
+27/08/2026, 19:50:06 [INFO] [VideoEngine] Tentando conexão RTSP (18) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:50:06 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:06 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:06 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:50:06 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 18)...
+27/08/2026, 19:50:07 [INFO] [VideoEngine] Tentando conexão RTSP (27) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:50:07 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:07 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:07 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:50:07 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 27)...
+27/08/2026, 19:50:08 [INFO] [VideoEngine] Tentando conexão RTSP (21) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:50:08 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:08 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:08 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:50:08 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 21)...
+27/08/2026, 19:50:11 [INFO] [VideoEngine] Tentando conexão RTSP (19) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:50:11 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:11 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:11 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:50:11 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 19)...
+27/08/2026, 19:50:12 [INFO] [VideoEngine] Tentando conexão RTSP (28) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:50:12 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:12 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:12 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:50:12 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 28)...
+27/08/2026, 19:50:13 [INFO] [VideoEngine] Tentando conexão RTSP (22) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:50:13 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:13 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:13 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:50:13 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 22)...
+27/08/2026, 19:50:16 [INFO] [VideoEngine] Tentando conexão RTSP (20) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:50:16 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:16 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:16 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:50:16 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 20)...
+27/08/2026, 19:50:17 [INFO] [VideoEngine] Tentando conexão RTSP (29) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:50:17 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:17 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:17 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:50:17 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 29)...
+27/08/2026, 19:50:18 [INFO] [VideoEngine] Tentando conexão RTSP (23) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:50:18 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:18 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:18 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:50:18 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 23)...
+27/08/2026, 19:50:21 [INFO] [VideoEngine] Tentando conexão RTSP (21) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:50:21 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:21 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:21 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:50:21 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 21)...
+27/08/2026, 19:50:22 [INFO] [VideoEngine] Tentando conexão RTSP (30) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:50:22 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:22 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:22 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:50:22 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 30)...
+27/08/2026, 19:50:23 [INFO] [VideoEngine] Tentando conexão RTSP (24) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:50:23 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:23 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:23 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:50:23 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 24)...
+27/08/2026, 19:50:26 [INFO] [VideoEngine] Tentando conexão RTSP (22) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:50:26 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:26 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:26 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:50:26 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 22)...
+27/08/2026, 19:50:27 [INFO] [VideoEngine] Tentando conexão RTSP (31) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:50:27 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:27 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:50:27 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 31)...
+27/08/2026, 19:50:28 [INFO] [VideoEngine] Tentando conexão RTSP (25) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:50:28 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:28 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:28 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:50:28 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 25)...
+27/08/2026, 19:50:31 [INFO] [VideoEngine] Tentando conexão RTSP (23) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:50:31 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:31 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:31 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:50:31 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 23)...
+27/08/2026, 19:50:32 [INFO] [VideoEngine] Tentando conexão RTSP (32) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:50:32 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:32 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:32 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:50:32 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 32)...
+27/08/2026, 19:50:33 [INFO] [VideoEngine] Tentando conexão RTSP (26) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:50:33 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:33 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:33 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:50:33 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 26)...
+27/08/2026, 19:50:36 [INFO] [VideoEngine] Tentando conexão RTSP (24) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:50:36 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:36 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:36 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:50:36 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 24)...
+27/08/2026, 19:50:37 [INFO] [VideoEngine] Tentando conexão RTSP (33) via TCP para câmera quick_view_10_10_1_10
+27/08/2026, 19:50:37 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:37 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:37 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:50:37 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 33)...
+27/08/2026, 19:50:38 [INFO] [VideoEngine] Tentando conexão RTSP (27) via TCP para câmera quick_view_10_10_1_112
+27/08/2026, 19:50:38 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:38 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:38 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:50:38 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 27)...
+27/08/2026, 19:50:41 [INFO] [VideoEngine] Tentando conexão RTSP (25) via TCP para câmera quick_view_10_10_1_107
+27/08/2026, 19:50:41 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:41 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:41 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:50:41 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 25)...
+27/08/2026, 19:50:42 [INFO] [VideoEngine] Tentando conexão RTSP (34) via UDP para câmera quick_view_10_10_1_10
+27/08/2026, 19:50:42 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:42 [WARN] [FFmpeg] [quick_view_10_10_1_10] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:42 [WARN] [FFmpeg] [quick_view_10_10_1_10] Error splitting the argument list: Option not found
+27/08/2026, 19:50:42 [WARN] [VideoEngine] Câmera quick_view_10_10_1_10 desconectada. Reconectando em 5 segundos (Tentativa 34)...
+27/08/2026, 19:50:43 [INFO] [VideoEngine] Tentando conexão RTSP (28) via UDP para câmera quick_view_10_10_1_112
+27/08/2026, 19:50:43 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:43 [WARN] [FFmpeg] [quick_view_10_10_1_112] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:43 [WARN] [FFmpeg] [quick_view_10_10_1_112] Error splitting the argument list: Option not found
+27/08/2026, 19:50:43 [WARN] [VideoEngine] Câmera quick_view_10_10_1_112 desconectada. Reconectando em 5 segundos (Tentativa 28)...
+27/08/2026, 19:50:46 [INFO] [VideoEngine] Tentando conexão RTSP (26) via UDP para câmera quick_view_10_10_1_107
+27/08/2026, 19:50:46 [INFO] [VideoEngine] Utilizando motor FFmpeg em: C:\Users\hiadmin.HIKSRV-AD01\AppData\Local\OnliView\resources\ffmpeg.exe
+27/08/2026, 19:50:46 [WARN] [FFmpeg] [quick_view_10_10_1_107] Unrecognized option 'stimeout'.
+27/08/2026, 19:50:46 [WARN] [FFmpeg] [quick_view_10_10_1_107] Error splitting the argument list: Option not found
+27/08/2026, 19:50:46 [WARN] [VideoEngine] Câmera quick_view_10_10_1_107 desconectada. Reconectando em 5 segundos (Tentativa 26)...

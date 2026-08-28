@@ -6,11 +6,17 @@ use axum::{
     Router,
 };
 use std::net::SocketAddr;
+use std::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt;
 use tower_http::cors::CorsLayer;
 
 use crate::video::engine::VideoEngineManager;
+
+/// Espera máxima pelo primeiro frame de uma sessão nova. Precisa acomodar o pior
+/// caso de H.265+ com Smart Codec, onde o intervalo entre I-Frames chega a 4s e o
+/// FFmpeg ainda gasta ~2s de `analyzeduration` para capturar VPS/SPS/PPS.
+const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub async fn start_stream_server(manager: VideoEngineManager, port: u16) {
     let app = Router::new()
@@ -48,13 +54,32 @@ async fn mjpeg_stream_handler(
     Path(camera_id): Path<String>,
     State(manager): State<VideoEngineManager>,
 ) -> Response {
-    let rx = match manager.get_frame_receiver(&camera_id).await {
+    let mut rx = match manager.get_frame_receiver(&camera_id).await {
         Some(r) => r,
         None => return (StatusCode::NOT_FOUND, "Camera stream not found").into_response(),
     };
 
-    let initial_frame = manager.get_latest_frame(&camera_id).await;
-    let initial_stream = tokio_stream::iter(initial_frame.into_iter().map(|frame| {
+    // Numa sessão já ativa o último frame em cache abre a conexão instantaneamente.
+    // Numa sessão recém-criada o cache está vazio: responder 200 com um multipart que
+    // nunca emite nada deixaria a tag <img> preta para sempre — um 200 não dispara
+    // `onError`, então o retry automático do frontend nunca seria acionado. Esperamos
+    // então o primeiro frame e devolvemos 503 se ele não vier, deixando o cliente
+    // tentar de novo enquanto o motor reconecta.
+    let initial_frame = match manager.get_latest_frame(&camera_id).await {
+        Some(frame) => frame,
+        None => match tokio::time::timeout(FIRST_FRAME_TIMEOUT, rx.recv()).await {
+            Ok(Ok(frame)) => frame,
+            _ => {
+                return (
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "Stream sem vídeo disponível",
+                )
+                    .into_response()
+            }
+        },
+    };
+
+    let initial_stream = tokio_stream::iter(std::iter::once(initial_frame).map(|frame| {
         let header = format!(
             "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n",
             frame.len()
