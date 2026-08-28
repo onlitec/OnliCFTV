@@ -165,3 +165,62 @@ pub fn extract_xml_tag(xml: &str, tag_name: &str) -> Option<String> {
     let content = &xml[content_start..content_start + end_pos];
     Some(content.trim().to_string())
 }
+
+/// Retorna o conteúdo de cada bloco `<tag_name>…</tag_name>` do documento.
+///
+/// Ao contrário de `extract_xml_tag`, que devolve só a primeira ocorrência, esta
+/// percorre o documento inteiro — respostas de lista do ISAPI repetem elementos
+/// irmãos (`<InputProxyChannel>`, `<searchMatchItem>`). O nome da tag é casado
+/// por inteiro, então `InputProxyChannel` não casa com o próprio invólucro
+/// `<InputProxyChannelList>`. Elemento auto-fechado devolve bloco vazio, e bloco
+/// sem fechamento encerra a varredura em vez de gerar lixo.
+///
+/// Limitação conhecida: não rastreia profundidade. Se um bloco contiver outro de
+/// mesmo nome aninhado, o fechamento interno encerra o externo. Nenhuma das
+/// respostas ISAPI usadas aqui aninha elementos de mesmo nome.
+pub fn extract_xml_blocks(xml: &str, tag_name: &str) -> Vec<String> {
+    let open = format!("<{}", tag_name);
+    let close = format!("</{}", tag_name);
+    let mut blocks = Vec::new();
+    let mut cursor = 0usize;
+
+    while let Some(rel) = xml[cursor..].find(&open) {
+        let start = cursor + rel;
+        let after_name = start + open.len();
+
+        // Casa o nome inteiro: o caractere seguinte precisa encerrar o nome da
+        // tag, senão "<Foo" casaria também com "<FooList".
+        let boundary_ok = xml[after_name..]
+            .chars()
+            .next()
+            .is_some_and(|c| c == '>' || c == '/' || c.is_whitespace());
+        if !boundary_ok {
+            cursor = after_name;
+            continue;
+        }
+
+        let open_end = match xml[after_name..].find('>') {
+            Some(rel_gt) => after_name + rel_gt,
+            None => break,
+        };
+
+        // Auto-fechado (<tag/> ou <tag ... />) não tem conteúdo próprio.
+        if xml[..open_end].ends_with('/') {
+            blocks.push(String::new());
+            cursor = open_end + 1;
+            continue;
+        }
+
+        let content_start = open_end + 1;
+        match xml[content_start..].find(&close) {
+            Some(rel_close) => {
+                let content_end = content_start + rel_close;
+                blocks.push(xml[content_start..content_end].trim().to_string());
+                cursor = content_end + close.len();
+            }
+            None => break,
+        }
+    }
+
+    blocks
+}

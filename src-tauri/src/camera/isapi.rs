@@ -9,10 +9,159 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
 use uuid::Uuid;
 
-use crate::discovery::providers::sadp::extract_xml_tag;
+use crate::discovery::providers::sadp::{extract_xml_blocks, extract_xml_tag};
+
+/// Prazo padrão de leitura de uma resposta ISAPI.
+pub const DEFAULT_READ_TIMEOUT_MS: u64 = 5000;
+
+/// Prazo para busca de gravação: o NVR varre o HD antes de responder e passa
+/// dos 5s padrão com facilidade em disco grande ou fragmentado.
+pub const RECORDING_SEARCH_TIMEOUT_MS: u64 = 15000;
 
 fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     haystack.windows(needle.len()).position(|w| w == needle)
+}
+
+/// Um canal de entrada IP configurado num NVR.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NvrChannel {
+    pub id: u32,
+    pub name: String,
+    /// `None` em canal analógico/local (DVR ou híbrido): não é descompasso de
+    /// cadastro, apenas um canal que não vem de câmera IP.
+    pub ip_address: Option<String>,
+}
+
+/// Uma faixa contínua de vídeo gravado.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecordingSegment {
+    pub start: String,
+    pub end: String,
+}
+
+/// Uma página de resultados de `/ISAPI/ContentMgmt/search`.
+#[derive(Debug, Clone)]
+pub struct RecordingSearchPage {
+    pub segments: Vec<RecordingSegment>,
+    /// O aparelho sinalizou que há mais resultados além desta página.
+    pub has_more: bool,
+}
+
+/// Extrai os canais de `/ISAPI/ContentMgmt/InputProxy/channels`.
+///
+/// Tolerante por natureza: as formas exatas do XML variam entre modelos e
+/// firmwares, então um canal sem `id` legível é descartado e qualquer outro
+/// campo ausente vira vazio/`None` em vez de derrubar a leitura inteira.
+pub fn parse_input_proxy_channels(xml: &str) -> Vec<NvrChannel> {
+    let mut channels = Vec::new();
+
+    for block in extract_xml_blocks(xml, "InputProxyChannel") {
+        let Some(id) = extract_xml_tag(&block, "id").and_then(|s| s.trim().parse::<u32>().ok())
+        else {
+            continue;
+        };
+
+        // O IP fica dentro do descritor da fonte, não solto no canal.
+        let ip_address = extract_xml_blocks(&block, "sourceInputPortDescriptor")
+            .first()
+            .and_then(|d| extract_xml_tag(d, "ipAddress"))
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+
+        channels.push(NvrChannel {
+            id,
+            name: extract_xml_tag(&block, "name").unwrap_or_default(),
+            ip_address,
+        });
+    }
+
+    channels
+}
+
+/// Extrai o estado online por canal de `/ISAPI/ContentMgmt/InputProxy/channels/status`.
+///
+/// O valor é `Option<bool>` de propósito: firmware que não informe `<online>`
+/// deve resultar em "desconhecido", nunca em "offline" — dizer que um canal está
+/// offline sem base viraria um alarme falso na tela.
+pub fn parse_channel_status(xml: &str) -> std::collections::HashMap<u32, Option<bool>> {
+    let mut status = std::collections::HashMap::new();
+
+    for block in extract_xml_blocks(xml, "InputProxyChannelStatus") {
+        let Some(id) = extract_xml_tag(&block, "id").and_then(|s| s.trim().parse::<u32>().ok())
+        else {
+            continue;
+        };
+
+        let online = extract_xml_tag(&block, "online")
+            .map(|v| v.trim().to_ascii_lowercase())
+            .and_then(|v| match v.as_str() {
+                "true" | "online" | "1" => Some(true),
+                "false" | "offline" | "0" => Some(false),
+                _ => None,
+            });
+
+        status.insert(id, online);
+    }
+
+    status
+}
+
+/// Extrai uma página de `<CMSearchResult>`.
+///
+/// Item sem `<timeSpan>` legível é pulado em vez de abortar a página — um
+/// registro corrompido não deve apagar os demais segmentos válidos.
+pub fn parse_search_result(xml: &str) -> RecordingSearchPage {
+    let mut segments = Vec::new();
+
+    for item in extract_xml_blocks(xml, "searchMatchItem") {
+        let Some(span) = extract_xml_blocks(&item, "timeSpan").into_iter().next() else {
+            continue;
+        };
+        let (Some(start), Some(end)) = (
+            extract_xml_tag(&span, "startTime"),
+            extract_xml_tag(&span, "endTime"),
+        ) else {
+            continue;
+        };
+        if start.is_empty() || end.is_empty() {
+            continue;
+        }
+        segments.push(RecordingSegment { start, end });
+    }
+
+    // "MORE" indica que o aparelho truncou a resposta nesta página.
+    let has_more = extract_xml_tag(xml, "responseStatusStrg")
+        .map(|s| s.trim().eq_ignore_ascii_case("MORE"))
+        .unwrap_or(false);
+
+    RecordingSearchPage { segments, has_more }
+}
+
+/// Escolhe com qual token de `qop` responder ao desafio Digest.
+///
+/// O servidor anuncia uma lista separada por vírgula. Preferimos `auth`, que não
+/// exige hash do corpo. Um teste de substring ingênuo (`qop.contains("auth")`)
+/// casaria com "auth-int" e responderia no formato errado — 401 permanente com
+/// cara de senha incorreta. `None` = servidor sem qop (RFC 2069 legado).
+pub fn select_qop(advertised: &str) -> Option<&'static str> {
+    let mut has_auth = false;
+    let mut has_auth_int = false;
+
+    for token in advertised.split(',') {
+        match token.trim().to_ascii_lowercase().as_str() {
+            "auth" => has_auth = true,
+            "auth-int" => has_auth_int = true,
+            _ => {}
+        }
+    }
+
+    if has_auth {
+        Some("auth")
+    } else if has_auth_int {
+        Some("auth-int")
+    } else {
+        None
+    }
 }
 
 /// Extracts the <name> value scoped to <channelNameOverlay>, instead of the first <name> tag
@@ -193,13 +342,28 @@ impl IsapiClient {
         uri: &str,
         body: Option<&str>,
     ) -> Result<(u16, String), String> {
+        self.http_request_with_timeout(method, uri, body, DEFAULT_READ_TIMEOUT_MS)
+            .await
+    }
+
+    /// Igual a `http_request`, mas com o prazo de leitura da resposta ajustável.
+    /// Busca de gravação em NVR com HD grande passa dos 5s padrão com facilidade.
+    pub async fn http_request_with_timeout(
+        &self,
+        method: &str,
+        uri: &str,
+        body: Option<&str>,
+        read_timeout_ms: u64,
+    ) -> Result<(u16, String), String> {
         let mut state = self.auth_state.lock().await;
 
         // Try using existing authenticated session first
         if state.is_authenticated && !state.nonce.is_empty() {
             state.nc += 1;
-            let auth_hdr = self.build_digest_header(method, uri, &state);
-            let (code, headers, resp_body) = self.raw_send(method, uri, body, Some(&auth_hdr)).await?;
+            let auth_hdr = self.build_digest_header(method, uri, body, &state);
+            let (code, headers, resp_body) = self
+                .raw_send(method, uri, body, Some(&auth_hdr), read_timeout_ms)
+                .await?;
             if code != 401 {
                 return Ok((code, resp_body));
             }
@@ -208,7 +372,9 @@ impl IsapiClient {
         }
 
         // Unauthenticated probe / handshake
-        let (code, headers, resp_body) = self.raw_send(method, uri, body, None).await?;
+        let (code, headers, resp_body) = self
+            .raw_send(method, uri, body, None, read_timeout_ms)
+            .await?;
         if code != 401 {
             return Ok((code, resp_body));
         }
@@ -220,15 +386,19 @@ impl IsapiClient {
             // Try Basic Auth fallback
             let cred = format!("{}:{}", self.username, self.password);
             let basic = format!("Basic {}", BASE64.encode(cred));
-            let (code_b, _, resp_b) = self.raw_send(method, uri, body, Some(&basic)).await?;
+            let (code_b, _, resp_b) = self
+                .raw_send(method, uri, body, Some(&basic), read_timeout_ms)
+                .await?;
             return Ok((code_b, resp_b));
         }
 
         state.nc = 1;
         state.is_authenticated = true;
-        let auth_hdr = self.build_digest_header(method, uri, &state);
+        let auth_hdr = self.build_digest_header(method, uri, body, &state);
 
-        let (code2, _, resp_body2) = self.raw_send(method, uri, body, Some(&auth_hdr)).await?;
+        let (code2, _, resp_body2) = self
+            .raw_send(method, uri, body, Some(&auth_hdr), read_timeout_ms)
+            .await?;
         Ok((code2, resp_body2))
     }
 
@@ -258,24 +428,42 @@ impl IsapiClient {
         }
     }
 
-    fn build_digest_header(&self, method: &str, uri: &str, state: &DigestState) -> String {
+    fn build_digest_header(
+        &self,
+        method: &str,
+        uri: &str,
+        body: Option<&str>,
+        state: &DigestState,
+    ) -> String {
         // HA1 = MD5(username:realm:password)
         let ha1_raw = format!("{}:{}:{}", self.username, state.realm, self.password);
         let ha1 = format!("{:x}", Md5::digest(ha1_raw.as_bytes()));
 
-        // HA2 = MD5(method:uri)
-        let ha2_raw = format!("{}:{}", method, uri);
+        let qop = select_qop(&state.qop);
+
+        // HA2 = MD5(method:uri), exceto em auth-int, que também protege o corpo:
+        // MD5(method:uri:MD5(body)). Responder com o formato errado gera 401 eterno.
+        let ha2_raw = match qop {
+            Some("auth-int") => {
+                let body_hash = format!("{:x}", Md5::digest(body.unwrap_or("").as_bytes()));
+                format!("{}:{}:{}", method, uri, body_hash)
+            }
+            _ => format!("{}:{}", method, uri),
+        };
         let ha2 = format!("{:x}", Md5::digest(ha2_raw.as_bytes()));
 
         let cnonce = Uuid::new_v4().to_string().replace('-', "")[..16].to_string();
         let nc_str = format!("{:08x}", state.nc);
 
-        let response = if state.qop.contains("auth") {
-            let resp_raw = format!("{}:{}:{}:{}:auth:{}", ha1, state.nonce, nc_str, cnonce, ha2);
-            format!("{:x}", Md5::digest(resp_raw.as_bytes()))
-        } else {
-            let resp_raw = format!("{}:{}:{}", ha1, state.nonce, ha2);
-            format!("{:x}", Md5::digest(resp_raw.as_bytes()))
+        let response = match qop {
+            Some(q) => {
+                let resp_raw = format!("{}:{}:{}:{}:{}:{}", ha1, state.nonce, nc_str, cnonce, q, ha2);
+                format!("{:x}", Md5::digest(resp_raw.as_bytes()))
+            }
+            None => {
+                let resp_raw = format!("{}:{}:{}", ha1, state.nonce, ha2);
+                format!("{:x}", Md5::digest(resp_raw.as_bytes()))
+            }
         };
 
         let mut auth = format!(
@@ -283,8 +471,10 @@ impl IsapiClient {
             self.username, state.realm, state.nonce, uri, response
         );
 
-        if state.qop.contains("auth") {
-            auth.push_str(&format!(", qop=auth, nc={}, cnonce=\"{}\"", nc_str, cnonce));
+        // O qop declarado tem de ser o mesmo usado no cálculo acima — declarar
+        // "auth" respondendo a um servidor que só ofereceu "auth-int" é rejeitado.
+        if let Some(q) = qop {
+            auth.push_str(&format!(", qop={}, nc={}, cnonce=\"{}\"", q, nc_str, cnonce));
         }
         if !state.opaque.is_empty() {
             auth.push_str(&format!(", opaque=\"{}\"", state.opaque));
@@ -299,6 +489,7 @@ impl IsapiClient {
         uri: &str,
         body: Option<&str>,
         auth_header: Option<&str>,
+        read_timeout_ms: u64,
     ) -> Result<(u16, String, String), String> {
         let addr = format!("{}:{}", self.ip, self.port);
         let mut stream = tokio::time::timeout(
@@ -343,7 +534,7 @@ impl IsapiClient {
         let mut temp = [0u8; 4096];
         let mut headers_end: Option<usize> = None;
         let mut content_length: Option<usize> = None;
-        let read_deadline = tokio::time::Instant::now() + Duration::from_millis(5000);
+        let read_deadline = tokio::time::Instant::now() + Duration::from_millis(read_timeout_ms);
 
         loop {
             let remaining = read_deadline.saturating_duration_since(tokio::time::Instant::now());
@@ -581,6 +772,92 @@ impl IsapiClient {
                 "Falha ao gravar OSD no dispositivo. Valor atual: '{}'",
                 applied
             ))
+        }
+    }
+
+    /// Lista os canais de entrada IP configurados no NVR.
+    pub async fn get_input_proxy_channels(&self) -> Result<Vec<NvrChannel>, String> {
+        let (code, body) = self
+            .http_request("GET", "/ISAPI/ContentMgmt/InputProxy/channels", None)
+            .await?;
+
+        match code {
+            200 => Ok(parse_input_proxy_channels(&body)),
+            401 => Err("Usuário ou senha incorretos".to_string()),
+            403 => Err("Sem permissão para listar os canais do gravador".to_string()),
+            404 | 501 => Err(
+                "Este equipamento não expõe a lista de canais IP (ISAPI ContentMgmt/InputProxy). \
+                 Pode ser um DVR analógico ou firmware antiga."
+                    .to_string(),
+            ),
+            other => Err(format!("Gravador respondeu com erro HTTP {}", other)),
+        }
+    }
+
+    /// Estado online de cada canal. Falha aqui não é fatal para a verificação:
+    /// o chamador segue sem o estado em vez de abortar o NVR inteiro.
+    pub async fn get_input_proxy_channel_status(
+        &self,
+    ) -> Result<std::collections::HashMap<u32, Option<bool>>, String> {
+        let (code, body) = self
+            .http_request("GET", "/ISAPI/ContentMgmt/InputProxy/channels/status", None)
+            .await?;
+
+        if code == 200 {
+            Ok(parse_channel_status(&body))
+        } else {
+            Err(format!("Status dos canais indisponível (HTTP {})", code))
+        }
+    }
+
+    /// Busca uma página de gravações de um track no intervalo informado.
+    ///
+    /// Primeiro POST do projeto — ver `select_qop`, pois é justamente um POST com
+    /// corpo que alguns firmwares desafiam com `qop=auth-int`.
+    pub async fn search_recordings_page(
+        &self,
+        track_id: u32,
+        start_iso: &str,
+        end_iso: &str,
+        max_results: u16,
+        result_position: u32,
+    ) -> Result<RecordingSearchPage, String> {
+        let search_id = Uuid::new_v4().to_string();
+        let body = format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<CMSearchDescription>
+  <searchID>{}</searchID>
+  <trackIDList><trackID>{}</trackID></trackIDList>
+  <timeSpanList><timeSpan><startTime>{}</startTime><endTime>{}</endTime></timeSpan></timeSpanList>
+  <maxResults>{}</maxResults>
+  <searchResultPosition>{}</searchResultPosition>
+</CMSearchDescription>"#,
+            search_id,
+            track_id,
+            xml_escape(start_iso),
+            xml_escape(end_iso),
+            max_results,
+            result_position
+        );
+
+        let (code, resp) = self
+            .http_request_with_timeout(
+                "POST",
+                "/ISAPI/ContentMgmt/search",
+                Some(&body),
+                RECORDING_SEARCH_TIMEOUT_MS,
+            )
+            .await?;
+
+        match code {
+            200 => Ok(parse_search_result(&resp)),
+            401 => Err("Usuário ou senha incorretos".to_string()),
+            403 => Err(
+                "Sem permissão para consultar gravações (usuário sem direito de Reprodução Remota)"
+                    .to_string(),
+            ),
+            404 | 501 => Err("Busca de gravações não suportada neste firmware".to_string()),
+            other => Err(format!("Gravador respondeu com erro HTTP {}", other)),
         }
     }
 

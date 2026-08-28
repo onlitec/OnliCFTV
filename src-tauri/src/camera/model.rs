@@ -16,6 +16,12 @@ pub struct Camera {
     pub enabled: bool,
     pub device_name: Option<String>,
     pub osd: Option<String>,
+    /// "ip_camera" | "nvr" | "dvr" | "intercom". Distingue um gravador de uma
+    /// câmera transmissível: só linhas de NVR/DVR são consultadas na Verificação
+    /// de Gravações, e só as demais entram no mosaico do Live View.
+    pub device_type: String,
+    /// Porta HTTP do ISAPI. NVRs frequentemente usam 8000/8080 em vez de 80.
+    pub http_port: u16,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -33,6 +39,7 @@ pub struct CreateCameraInput {
     pub enabled: Option<bool>,
     pub device_name: Option<String>,
     pub osd: Option<String>,
+    pub device_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,6 +56,7 @@ pub struct UpdateCameraInput {
     pub enabled: Option<bool>,
     pub device_name: Option<String>,
     pub osd: Option<String>,
+    pub device_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +81,9 @@ pub struct BatchDeviceItem {
     pub custom_rtsp_url: Option<String>,
     pub device_name: Option<String>,
     pub osd: Option<String>,
+    /// Vem da classificação da Descoberta, para que um NVR encontrado na rede já
+    /// seja cadastrado como gravador em vez de câmera.
+    pub device_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

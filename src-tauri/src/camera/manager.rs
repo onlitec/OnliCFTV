@@ -1,6 +1,12 @@
+use std::sync::Arc;
+
+use chrono::{DateTime, Duration as ChronoDuration, Utc};
+
 use crate::database::Database;
 use crate::camera::model::*;
-use crate::camera::isapi::IsapiClient;
+use crate::camera::isapi::{IsapiClient, RecordingSegment};
+use crate::camera::recording::*;
+use crate::logging::logger::sanitize_credentials;
 use crate::rtsp::client::build_authenticated_rtsp_url;
 use crate::rtsp::probe::probe_rtsp_stream;
 use crate::video::engine::VideoEngineManager;
@@ -380,6 +386,7 @@ impl CameraManager {
                                 enabled: None,
                                 device_name: Some(new_name.to_string()),
                                 osd: None,
+                                device_type: None,
                             });
                         }
                     }
@@ -423,6 +430,7 @@ impl CameraManager {
                                 enabled: None,
                                 device_name: None,
                                 osd: Some(new_osd.to_string()),
+                                device_type: None,
                             });
                         }
                     }
@@ -490,4 +498,268 @@ impl CameraManager {
     pub fn forget_device_credentials(&self, ip: &str) -> Result<(), String> {
         self.db.delete_device_credentials(ip.trim())
     }
+
+    /// Consulta os NVRs cadastrados e monta o panorama de gravação por canal.
+    ///
+    /// Tudo ao vivo — nada é persistido. Sem período informado, usa as últimas 24h.
+    pub async fn check_recordings(
+        &self,
+        period_start: Option<String>,
+        period_end: Option<String>,
+        nvr_ids: Option<Vec<String>>,
+    ) -> Result<RecordingCheckResult, String> {
+        let end = period_end
+            .as_deref()
+            .and_then(parse_isapi_time)
+            .unwrap_or_else(Utc::now);
+        let start = period_start
+            .as_deref()
+            .and_then(parse_isapi_time)
+            .unwrap_or_else(|| end - ChronoDuration::hours(24));
+
+        if start >= end {
+            return Err("O início do período deve ser anterior ao fim.".to_string());
+        }
+
+        let all = self.db.get_cameras().map_err(|e| e.to_string())?;
+        let (recorders, cameras): (Vec<Camera>, Vec<Camera>) = all
+            .into_iter()
+            .partition(|c| matches!(c.device_type.as_str(), "nvr" | "dvr"));
+
+        let recorders: Vec<Camera> = match &nvr_ids {
+            Some(ids) => recorders.into_iter().filter(|r| ids.contains(&r.id)).collect(),
+            None => recorders,
+        };
+
+        if recorders.is_empty() {
+            self.log_store.log(
+                "WARN",
+                "Gravacoes",
+                "Verificação solicitada, mas nenhum NVR/DVR está cadastrado.",
+            );
+            return Ok(RecordingCheckResult {
+                period_start: format_isapi_time(start),
+                period_end: format_isapi_time(end),
+                nvr_reports: Vec::new(),
+                orphan_cameras: cameras,
+            });
+        }
+
+        // Um NVR por task: hosts diferentes, então o paralelismo aqui é seguro.
+        // O limite de sessões é aplicado dentro de cada NVR, não entre eles.
+        let mut tasks = tokio::task::JoinSet::new();
+        for nvr in recorders {
+            let password = self
+                .db
+                .get_camera_decrypted_password(&nvr.id)
+                .unwrap_or_default()
+                .unwrap_or_default();
+            let cams = cameras.clone();
+            tasks.spawn(async move { check_single_nvr(nvr, password, cams, start, end).await });
+        }
+
+        let mut nvr_reports = Vec::new();
+        while let Some(joined) = tasks.join_next().await {
+            match joined {
+                Ok(report) => nvr_reports.push(report),
+                Err(e) => {
+                    self.log_store.log(
+                        "ERROR",
+                        "Gravacoes",
+                        &sanitize_credentials(&format!("Falha interna ao verificar um NVR: {}", e)),
+                    );
+                }
+            }
+        }
+
+        nvr_reports.sort_by(|a, b| a.nvr_name.cmp(&b.nvr_name));
+
+        // Órfã só depois de consultar todos: uma câmera no NVR B não pode ser
+        // marcada órfã só por faltar no NVR A.
+        let matched: std::collections::HashSet<String> = nvr_reports
+            .iter()
+            .flat_map(|r| r.channels.iter())
+            .filter_map(|c| c.matched_camera_id.clone())
+            .collect();
+        let orphan_cameras: Vec<Camera> = cameras
+            .into_iter()
+            .filter(|c| !matched.contains(&c.id))
+            .collect();
+
+        let reachable = nvr_reports.iter().filter(|r| r.reachable && r.auth_ok).count();
+        let not_recording = nvr_reports
+            .iter()
+            .flat_map(|r| r.channels.iter())
+            .filter(|c| c.is_recording == Some(false))
+            .count();
+
+        // Só contagens no log — nada de nome de host com credencial embutida.
+        self.log_store.log(
+            "INFO",
+            "Gravacoes",
+            &format!(
+                "Verificação concluída: {}/{} gravador(es) acessível(is), {} canal(is) sem gravação, {} câmera(s) fora de qualquer NVR.",
+                reachable,
+                nvr_reports.len(),
+                not_recording,
+                orphan_cameras.len()
+            ),
+        );
+
+        Ok(RecordingCheckResult {
+            period_start: format_isapi_time(start),
+            period_end: format_isapi_time(end),
+            nvr_reports,
+            orphan_cameras,
+        })
+    }
+}
+
+/// Consulta um NVR: lista canais, casa com o cadastro e busca gravações.
+async fn check_single_nvr(
+    nvr: Camera,
+    password: String,
+    cameras: Vec<Camera>,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> NvrRecordingReport {
+    let mut report = NvrRecordingReport {
+        nvr_id: nvr.id.clone(),
+        nvr_name: nvr.name.clone(),
+        nvr_host: nvr.host.clone(),
+        reachable: false,
+        auth_ok: false,
+        error: None,
+        channels: Vec::new(),
+        unregistered_channels: Vec::new(),
+    };
+
+    let client = Arc::new(IsapiClient::new(
+        &nvr.host,
+        nvr.http_port,
+        &nvr.username,
+        &password,
+    ));
+
+    let channels = match client.get_input_proxy_channels().await {
+        Ok(c) => {
+            report.reachable = true;
+            report.auth_ok = true;
+            c
+        }
+        Err(e) => {
+            // Credencial errada é acionável de forma diferente de cabo/rota
+            // fora, então separamos os dois casos para o técnico.
+            let is_auth = e.contains("senha") || e.contains("permissão");
+            report.reachable = !e.contains("conectar") && !e.contains("Timeout");
+            report.auth_ok = !is_auth;
+            report.error = Some(e);
+            return report;
+        }
+    };
+
+    // Estado online é complementar: se falhar, seguimos sem ele.
+    let status = client
+        .get_input_proxy_channel_status()
+        .await
+        .unwrap_or_default();
+
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_PER_NVR));
+    let mut tasks = tokio::task::JoinSet::new();
+
+    for ch in channels {
+        let client = client.clone();
+        let semaphore = semaphore.clone();
+        let online = status.get(&ch.id).copied().flatten();
+        let matched = ch
+            .ip_address
+            .as_deref()
+            .and_then(|ip| match_camera_by_ip(ip, &cameras))
+            .map(|c| (c.id.clone(), c.name.clone()));
+
+        tasks.spawn(async move {
+            let _permit = semaphore.acquire().await;
+            let mut entry = ChannelRecordingStatus {
+                channel_id: ch.id,
+                channel_name: ch.name,
+                ip_address: ch.ip_address,
+                online,
+                matched_camera_id: matched.as_ref().map(|(id, _)| id.clone()),
+                matched_camera_name: matched.as_ref().map(|(_, n)| n.clone()),
+                is_recording: None,
+                segments: Vec::new(),
+                coverage_ratio: 0.0,
+                truncated: false,
+                error: None,
+            };
+
+            match fetch_channel_segments(&client, ch.id, start, end).await {
+                Ok((segments, truncated)) => {
+                    entry.is_recording = Some(!segments.is_empty());
+                    entry.coverage_ratio = coverage_ratio(&segments, start, end);
+                    entry.segments = segments;
+                    entry.truncated = truncated;
+                }
+                // is_recording fica None: "não consegui perguntar" não é "não gravou".
+                Err(e) => entry.error = Some(e),
+            }
+
+            entry
+        });
+    }
+
+    let mut collected = Vec::new();
+    while let Some(joined) = tasks.join_next().await {
+        if let Ok(entry) = joined {
+            collected.push(entry);
+        }
+    }
+    collected.sort_by_key(|c| c.channel_id);
+
+    for entry in collected {
+        if entry.matched_camera_id.is_some() {
+            report.channels.push(entry);
+        } else {
+            report.unregistered_channels.push(entry);
+        }
+    }
+
+    report
+}
+
+/// Pagina a busca de gravações de um canal, com teto rígido de páginas.
+async fn fetch_channel_segments(
+    client: &IsapiClient,
+    channel_id: u32,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> Result<(Vec<RecordingSegment>, bool), String> {
+    let track_id = track_id_for_channel(channel_id);
+    let start_s = format_isapi_time(start);
+    let end_s = format_isapi_time(end);
+
+    let mut segments = Vec::new();
+    let mut position = 0u32;
+    let mut truncated = false;
+
+    for page in 0..MAX_SEARCH_PAGES {
+        let result = client
+            .search_recordings_page(track_id, &start_s, &end_s, SEARCH_PAGE_SIZE, position)
+            .await?;
+
+        let returned = result.segments.len() as u32;
+        segments.extend(result.segments);
+
+        if !result.has_more || returned == 0 {
+            break;
+        }
+
+        position += returned;
+
+        if page + 1 == MAX_SEARCH_PAGES {
+            truncated = true;
+        }
+    }
+
+    Ok((segments, truncated))
 }

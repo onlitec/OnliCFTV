@@ -35,6 +35,18 @@ impl Database {
         let _ = conn.execute("ALTER TABLE cameras ADD COLUMN device_name TEXT", []);
         let _ = conn.execute("ALTER TABLE cameras ADD COLUMN osd TEXT", []);
 
+        // Migração para a Verificação de Gravações: device_type separa gravadores
+        // de câmeras, e http_port passa a ser persistido — antes era aceito na
+        // entrada e descartado, deixando todo dispositivo salvo preso à porta 80.
+        let _ = conn.execute(
+            "ALTER TABLE cameras ADD COLUMN device_type TEXT NOT NULL DEFAULT 'ip_camera'",
+            [],
+        );
+        let _ = conn.execute(
+            "ALTER TABLE cameras ADD COLUMN http_port INTEGER NOT NULL DEFAULT 80",
+            [],
+        );
+
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
@@ -43,7 +55,7 @@ impl Database {
     pub fn get_cameras(&self) -> Result<Vec<Camera>> {
         let lock = self.conn.lock().unwrap();
         let mut stmt = lock.prepare(
-            "SELECT id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at FROM cameras ORDER BY created_at ASC"
+            "SELECT id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at, device_type, http_port FROM cameras ORDER BY created_at ASC"
         )?;
 
         let camera_iter = stmt.query_map([], |row| {
@@ -61,6 +73,8 @@ impl Database {
                 osd: row.get(10)?,
                 created_at: row.get(11)?,
                 updated_at: row.get(12)?,
+                device_type: row.get(13)?,
+                http_port: row.get(14)?,
             })
         })?;
 
@@ -74,7 +88,7 @@ impl Database {
     pub fn get_camera_by_id(&self, id: &str) -> Result<Option<Camera>> {
         let lock = self.conn.lock().unwrap();
         let mut stmt = lock.prepare(
-            "SELECT id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at FROM cameras WHERE id = ?1"
+            "SELECT id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at, device_type, http_port FROM cameras WHERE id = ?1"
         )?;
 
         let mut rows = stmt.query(params![id])?;
@@ -93,6 +107,8 @@ impl Database {
                 osd: row.get(10)?,
                 created_at: row.get(11)?,
                 updated_at: row.get(12)?,
+                device_type: row.get(13)?,
+                http_port: row.get(14)?,
             }))
         } else {
             Ok(None)
@@ -126,11 +142,13 @@ impl Database {
         let plain_pass = input.password.unwrap_or_default();
         let password_encrypted = encrypt_password(&plain_pass)?;
         let enabled = input.enabled.unwrap_or(true);
+        let device_type = input.device_type.unwrap_or_else(|| "ip_camera".to_string());
+        let http_port = input.http_port.unwrap_or(80);
 
         let lock = self.conn.lock().unwrap();
         lock.execute(
-            "INSERT INTO cameras (id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at) 
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            "INSERT INTO cameras (id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at, device_type, http_port)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![
                 id,
                 input.name,
@@ -144,7 +162,9 @@ impl Database {
                 input.device_name,
                 input.osd,
                 now,
-                now
+                now,
+                device_type,
+                http_port
             ],
         ).map_err(|e| e.to_string())?;
 
@@ -160,6 +180,8 @@ impl Database {
             enabled,
             device_name: input.device_name,
             osd: input.osd,
+            device_type,
+            http_port,
             created_at: now.clone(),
             updated_at: now,
         })
@@ -189,9 +211,12 @@ impl Database {
                 format_default_rtsp_url(&item.host, rtsp_port, &stream_profile)
             };
 
+            let device_type = item.device_type.unwrap_or_else(|| "ip_camera".to_string());
+            let http_port = item.http_port.unwrap_or(80);
+
             tx.execute(
-                "INSERT INTO cameras (id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                "INSERT INTO cameras (id, name, host, username, password_encrypted, rtsp_port, rtsp_url, stream_profile, enabled, device_name, osd, created_at, updated_at, device_type, http_port)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
                 params![
                     id,
                     item.name,
@@ -205,7 +230,9 @@ impl Database {
                     item.device_name,
                     item.osd,
                     now,
-                    now
+                    now,
+                    device_type,
+                    http_port
                 ],
             ).map_err(|e| e.to_string())?;
 
@@ -221,6 +248,8 @@ impl Database {
                 enabled: true,
                 device_name: item.device_name,
                 osd: item.osd,
+                device_type,
+                http_port,
                 created_at: now.clone(),
                 updated_at: now.clone(),
             });
@@ -244,6 +273,8 @@ impl Database {
         let enabled = input.enabled.unwrap_or(existing.enabled);
         let device_name = input.device_name.or(existing.device_name);
         let osd = input.osd.or(existing.osd);
+        let device_type = input.device_type.unwrap_or(existing.device_type);
+        let http_port = input.http_port.unwrap_or(existing.http_port);
 
         let password_encrypted = if let Some(pass) = input.password {
             if !pass.is_empty() {
@@ -267,7 +298,7 @@ impl Database {
 
         let lock = self.conn.lock().unwrap();
         lock.execute(
-            "UPDATE cameras SET name = ?1, host = ?2, username = ?3, password_encrypted = ?4, rtsp_port = ?5, rtsp_url = ?6, stream_profile = ?7, enabled = ?8, device_name = ?9, osd = ?10, updated_at = ?11 WHERE id = ?12",
+            "UPDATE cameras SET name = ?1, host = ?2, username = ?3, password_encrypted = ?4, rtsp_port = ?5, rtsp_url = ?6, stream_profile = ?7, enabled = ?8, device_name = ?9, osd = ?10, updated_at = ?11, device_type = ?12, http_port = ?13 WHERE id = ?14",
             params![
                 name,
                 host,
@@ -280,6 +311,8 @@ impl Database {
                 device_name,
                 osd,
                 now,
+                device_type,
+                http_port,
                 input.id
             ],
         ).map_err(|e| e.to_string())?;
@@ -296,6 +329,8 @@ impl Database {
             enabled,
             device_name,
             osd,
+            device_type,
+            http_port,
             created_at: existing.created_at,
             updated_at: now,
         })

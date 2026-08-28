@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS cameras (
     enabled INTEGER NOT NULL DEFAULT 1,
     device_name TEXT,
     osd TEXT,
+    device_type TEXT NOT NULL DEFAULT 'ip_camera',
+    http_port INTEGER NOT NULL DEFAULT 80,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );

@@ -100,6 +100,9 @@ export const DiscoveryModal: React.FC<DiscoveryModalProps> = ({
           host: d.ip,
           rtsp_port: d.rtsp_port || 554,
           http_port: d.http_port || 80,
+          // A Descoberta ja classificou NVR/DVR: registra com o tipo certo para
+          // que o gravador apareca na Verificacao de Gravacoes.
+          device_type: d.device_type,
         })),
         username: batchUsername.trim() || 'admin',
         password: batchPassword || undefined,

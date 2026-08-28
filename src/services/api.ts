@@ -15,6 +15,7 @@ import type {
   QuickViewSetDeviceNameInput,
   QuickViewSetOsdInput,
   CachedDeviceCredentials,
+  RecordingCheckResult,
 } from '@/types';
 
 export const api = {
@@ -124,5 +125,17 @@ export const api = {
 
   async forgetDeviceCredentials(ip: string): Promise<void> {
     return await invoke('forget_device_credentials', { ip });
+  },
+
+  /**
+   * Consulta ao vivo os NVRs cadastrados e devolve o panorama de gravação por
+   * canal. Sem período informado, o backend usa as últimas 24h.
+   */
+  async checkRecordings(
+    periodStart?: string,
+    periodEnd?: string,
+    nvrIds?: string[],
+  ): Promise<RecordingCheckResult> {
+    return await invoke('check_recordings', { periodStart, periodEnd, nvrIds });
   },
 };

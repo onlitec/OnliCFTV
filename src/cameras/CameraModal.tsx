@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, AlertTriangle, Eye, EyeOff, Loader2, PlayCircle, ShieldCheck } from 'lucide-react';
-import type { Camera, CreateCameraInput, CameraConnectionTestResult } from '@/types';
+import type { Camera, CreateCameraInput, CameraConnectionTestResult, DeviceType } from '@/types';
 import { api } from '@/services/api';
 
 interface CameraModalProps {
@@ -24,6 +24,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rtspPort, setRtspPort] = useState(554);
+  const [httpPort, setHttpPort] = useState(80);
+  const [deviceType, setDeviceType] = useState<DeviceType>('ip_camera');
   const [streamProfile, setStreamProfile] = useState<'main' | 'sub' | 'custom'>('main');
   const [customRtspUrl, setCustomRtspUrl] = useState('');
   const [deviceName, setDeviceName] = useState('');
@@ -42,6 +44,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
       setUsername(cameraToEdit.username);
       setPassword(''); // keep blank unless user types new
       setRtspPort(cameraToEdit.rtsp_port);
+      setHttpPort(cameraToEdit.http_port || 80);
+      setDeviceType(cameraToEdit.device_type || 'ip_camera');
       setStreamProfile((cameraToEdit.stream_profile as any) || 'main');
       setCustomRtspUrl(cameraToEdit.rtsp_url);
       setDeviceName(cameraToEdit.device_name || '');
@@ -53,6 +57,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
       setUsername(prefillData.username || 'admin');
       setPassword(prefillData.password || '');
       setRtspPort(prefillData.rtsp_port || 554);
+      setHttpPort(prefillData.http_port || 80);
+      setDeviceType(prefillData.device_type || 'ip_camera');
       setStreamProfile((prefillData.stream_profile as any) || 'main');
       setCustomRtspUrl(prefillData.rtsp_url || '');
       setDeviceName(prefillData.device_name || '');
@@ -64,6 +70,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
       setUsername('admin');
       setPassword('');
       setRtspPort(554);
+      setHttpPort(80);
+      setDeviceType('ip_camera');
       setStreamProfile('main');
       setCustomRtspUrl('');
       setDeviceName('');
@@ -75,6 +83,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
   }, [cameraToEdit, prefillData, isOpen]);
 
   if (!isOpen) return null;
+
+  const isRecorder = deviceType === 'nvr' || deviceType === 'dvr';
 
   const handleTestConnection = async () => {
     if (!host) {
@@ -92,6 +102,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({
         username,
         password: password || undefined,
         rtsp_port: Number(rtspPort) || 554,
+        http_port: Number(httpPort) || 80,
         stream_profile: streamProfile,
         rtsp_url: streamProfile === 'custom' ? customRtspUrl : undefined,
       };
@@ -133,6 +144,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
           username,
           password: password || undefined,
           rtsp_port: Number(rtspPort),
+          http_port: Number(httpPort) || 80,
+          device_type: deviceType,
           stream_profile: streamProfile,
           rtsp_url: streamProfile === 'custom' ? customRtspUrl : undefined,
           device_name: deviceName.trim() || undefined,
@@ -146,6 +159,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({
           username,
           password: password || undefined,
           rtsp_port: Number(rtspPort),
+          http_port: Number(httpPort) || 80,
+          device_type: deviceType,
           stream_profile: streamProfile,
           rtsp_url: streamProfile === 'custom' ? customRtspUrl : undefined,
           device_name: deviceName.trim() || undefined,
@@ -201,7 +216,40 @@ export const CameraModal: React.FC<CameraModalProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+              Tipo de Dispositivo
+            </label>
+            <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg p-0.5">
+              {([
+                { id: 'ip_camera', label: 'Câmera' },
+                { id: 'nvr', label: 'NVR' },
+                { id: 'dvr', label: 'DVR' },
+                { id: 'intercom', label: 'Vídeo Porteiro' },
+              ] as { id: DeviceType; label: string }[]).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setDeviceType(opt.id)}
+                  className={`flex-1 px-2.5 py-1.5 rounded text-xs font-semibold transition ${
+                    deviceType === opt.id
+                      ? 'bg-sky-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {isRecorder && (
+              <p className="text-[11px] text-slate-400 mt-1.5">
+                Gravadores são consultados na tela de Verificação de Gravações. Confira a porta HTTP —
+                NVRs costumam usar 8000 ou 8080.
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-4 gap-3">
             <div className="col-span-2">
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
                 IP ou Hostname *
@@ -224,6 +272,19 @@ export const CameraModal: React.FC<CameraModalProps> = ({
                 value={rtspPort}
                 onChange={(e) => setRtspPort(Number(e.target.value))}
                 placeholder="554"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none focus:border-sky-500 font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                Porta HTTP
+              </label>
+              <input
+                type="number"
+                value={httpPort}
+                onChange={(e) => setHttpPort(Number(e.target.value))}
+                placeholder="80"
+                title="Porta do ISAPI, usada para ler nome/OSD e consultar gravações"
                 className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3.5 py-2 text-sm text-white focus:outline-none focus:border-sky-500 font-mono"
               />
             </div>

@@ -11,6 +11,7 @@ use tauri::State;
 
 use crate::camera::model::*;
 use crate::camera::manager::CameraManager;
+use crate::camera::recording::RecordingCheckResult;
 use crate::discovery::NetworkInterfaceInfo;
 use crate::video::engine::{VideoEngineManager, CameraStreamStatus};
 use crate::logging::logger::{LogStore, LogEntry};
@@ -160,6 +161,19 @@ async fn forget_device_credentials(ip: String, state: State<'_, AppState>) -> Re
     state.camera_manager.forget_device_credentials(&ip)
 }
 
+#[tauri::command]
+async fn check_recordings(
+    period_start: Option<String>,
+    period_end: Option<String>,
+    nvr_ids: Option<Vec<String>>,
+    state: State<'_, AppState>,
+) -> Result<RecordingCheckResult, String> {
+    state
+        .camera_manager
+        .check_recordings(period_start, period_end, nvr_ids)
+        .await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let config = AppConfig::default();
@@ -221,7 +235,8 @@ pub fn run() {
             start_device_preview,
             stop_device_preview,
             get_device_credentials,
-            forget_device_credentials
+            forget_device_credentials,
+            check_recordings
         ])
         .run(tauri::generate_context!())
         .expect("error while running OnliView application");

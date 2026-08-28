@@ -74,6 +74,10 @@ export interface Camera {
   enabled: boolean;
   device_name?: string | null;
   osd?: string | null;
+  /** Distingue gravador de câmera: só NVR/DVR são consultados na Verificação de Gravações. */
+  device_type: DeviceType;
+  /** Porta HTTP do ISAPI. NVRs costumam usar 8000/8080 em vez de 80. */
+  http_port: number;
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +94,7 @@ export interface CreateCameraInput {
   enabled?: boolean;
   device_name?: string | null;
   osd?: string | null;
+  device_type?: DeviceType;
 }
 
 export interface UpdateCameraInput {
@@ -105,6 +110,7 @@ export interface UpdateCameraInput {
   enabled?: boolean;
   device_name?: string | null;
   osd?: string | null;
+  device_type?: DeviceType;
 }
 
 export interface BatchDeviceItem {
@@ -115,6 +121,8 @@ export interface BatchDeviceItem {
   custom_rtsp_url?: string;
   device_name?: string | null;
   osd?: string | null;
+  /** Vem da classificação da Descoberta, para NVR encontrado já entrar como gravador. */
+  device_type?: DeviceType;
 }
 
 export interface BatchCreateCamerasInput {
@@ -226,4 +234,47 @@ export interface QuickViewSessionInfo {
 export interface CachedDeviceCredentials {
   username: string;
   password: string;
+}
+
+/** Uma faixa contínua de vídeo gravado no NVR. */
+export interface RecordingSegment {
+  start: string;
+  end: string;
+}
+
+export interface ChannelRecordingStatus {
+  channel_id: number;
+  channel_name: string;
+  /** null em canal analógico/local (DVR/híbrido) — não é falta de cadastro. */
+  ip_address?: string | null;
+  online?: boolean | null;
+  matched_camera_id?: string | null;
+  matched_camera_name?: string | null;
+  /**
+   * null = não foi possível determinar (erro, sem permissão, não suportado).
+   * Diferente de false ("não gravou"): as duas coisas exigem ações distintas.
+   */
+  is_recording?: boolean | null;
+  segments: RecordingSegment[];
+  coverage_ratio: number;
+  truncated: boolean;
+  error?: string | null;
+}
+
+export interface NvrRecordingReport {
+  nvr_id: string;
+  nvr_name: string;
+  nvr_host: string;
+  reachable: boolean;
+  auth_ok: boolean;
+  error?: string | null;
+  channels: ChannelRecordingStatus[];
+  unregistered_channels: ChannelRecordingStatus[];
+}
+
+export interface RecordingCheckResult {
+  period_start: string;
+  period_end: string;
+  nvr_reports: NvrRecordingReport[];
+  orphan_cameras: Camera[];
 }

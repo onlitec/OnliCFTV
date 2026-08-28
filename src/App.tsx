@@ -6,6 +6,7 @@ import { CameraModal } from '@/cameras/CameraModal';
 import { LiveView } from '@/video/LiveView';
 import { SettingsPage } from '@/settings/SettingsPage';
 import { DiagnosticsPage } from '@/diagnostics/DiagnosticsPage';
+import { RecordingsPage } from '@/pages/RecordingsPage';
 
 import type {
   Camera,
@@ -162,8 +163,15 @@ export const App: React.FC = () => {
     setCurrentTab('live');
   };
 
+  // Gravadores ficam de fora do mosaico e dos contadores de stream: um NVR é
+  // cadastrado para ser consultado em Verificação de Gravações, não para ocupar
+  // uma célula do Live View nem contar como câmera offline.
+  const streamableCameras = cameras.filter(
+    (c) => c.device_type !== 'nvr' && c.device_type !== 'dvr',
+  );
+
   const onlineCount = Object.values(streamStatuses).filter((s) => s.state === 'online').length;
-  const totalCount = cameras.length;
+  const totalCount = streamableCameras.length;
   const serverPort = appConfig?.video_server_port || 18554;
 
   const tabTitles: Record<NavTab, { title: string; subtitle: string }> = {
@@ -184,8 +192,8 @@ export const App: React.FC = () => {
       subtitle: 'Detecção de movimento, tamper e anomalias de rede',
     },
     recordings: {
-      title: 'Gravações & Playback',
-      subtitle: 'Reprodução de imagens e exportação de evidências',
+      title: 'Verificação de Gravações',
+      subtitle: 'Confere nos NVRs, canal a canal, se as câmeras estão realmente gravando',
     },
     diagnostics: {
       title: 'Diagnóstico e Telemetria Técnica',
@@ -258,7 +266,7 @@ export const App: React.FC = () => {
 
         {currentTab === 'live' && (
           <LiveView
-            cameras={cameras}
+            cameras={streamableCameras}
             streamStatuses={streamStatuses}
             onReconnect={handleStartStream}
             onStartAll={handleStartAll}
@@ -279,7 +287,9 @@ export const App: React.FC = () => {
 
         {currentTab === 'settings' && <SettingsPage />}
 
-        {(currentTab === 'events' || currentTab === 'recordings') && (
+        {currentTab === 'recordings' && <RecordingsPage cameras={cameras} />}
+
+        {currentTab === 'events' && (
           <div className="p-12 text-center text-slate-400 space-y-3">
             <h3 className="text-lg font-bold text-white">Módulo em Desenvolvimento</h3>
             <p className="text-xs max-w-sm mx-auto">
